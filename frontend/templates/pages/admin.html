@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}AI岗位监测 - 管理{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <h1>管理面板</h1>
+  <p>监控抓取状态，手动触发数据更新</p>
+</div>
+
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <div class="card">
+    <div class="section-title">运行状态</div>
+    <div id="scrape-status" hx-get="/api/scrape/status" hx-trigger="load, every 30s">
+      <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title">手动触发抓取</div>
+    <p style="color:var(--c-text-secondary);font-size:0.9rem;margin-bottom:1rem;">系统每日 9:00 自动抓取，也可手动触发</p>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+      <form hx-post="/api/scrape/trigger?platform=tencent" hx-target="#trigger-result" style="margin:0">
+        <button type="submit" class="btn">抓取 腾讯</button>
+      </form>
+      <form hx-post="/api/scrape/trigger?platform=bytedance" hx-target="#trigger-result" style="margin:0">
+        <button type="submit" class="btn">抓取 字节跳动</button>
+      </form>
+      <form hx-post="/api/scrape/trigger?platform=all" hx-target="#trigger-result" style="margin:0">
+        <button type="submit" class="btn btn-contrast">抓取 全部平台</button>
+      </form>
+    </div>
+    <div id="trigger-result" style="font-size:0.88rem;"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:2rem;">
+  <div class="section-title">抓取历史</div>
+  <div id="scrape-history" hx-get="/api/scrape/history" hx-trigger="load">
+    <p style="color: var(--c-text-secondary);">加载中…</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">配置信息</div>
+  <table>
+    <tr><td style="color:var(--c-text-secondary);width:120px;">平台</td><td>腾讯 / 字节跳动</td></tr>
+    <tr><td style="color:var(--c-text-secondary);">搜索关键词</td><td>AI产品经理、大模型产品经理、人工智能产品经理、AI运营、大模型运营、AI产品运营、数据产品经理、提示词工程师、AI训练师</td></tr>
+    <tr><td style="color:var(--c-text-secondary);">目标城市</td><td>北京、上海、深圳、杭州、广州</td></tr>
+    <tr><td style="color:var(--c-text-secondary);">定时更新</td><td>每日 9:00</td></tr>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target.id === 'scrape-status') {
+      const data = JSON.parse(evt.detail.xhr.responseText);
+      let html = '<div class="run-card">';
+      if (data.last_run) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+        html += '<span style="font-weight:600;">上次抓取</span>';
+        html += '<span style="font-size:0.82rem;color:var(--c-text-secondary);">' + new Date(data.last_run.started_at).toLocaleString('zh-CN') + '</span>';
+        html += '</div>';
+        html += '<div style="margin-top:0.5rem;display:flex;gap:1.5rem;font-size:0.9rem;">';
+        html += '<span>状态: <strong>' + (data.last_run.status === 'success' ? '成功' : data.last_run.status) + '</strong></span>';
+        html += '<span>发现: ' + (data.last_run.jobs_found || 0) + ' 条</span>';
+        html += '<span>新增: ' + (data.last_run.jobs_new || 0) + ' 条</span>';
+        html += '</div>';
+        if (data.last_run.error_message) {
+          html += '<p style="color:var(--c-orange);margin-top:0.5rem;font-size:0.85rem;">错误: ' + data.last_run.error_message + '</p>';
+        }
+      } else {
+        html += '<p style="color:var(--c-text-secondary);">尚未执行抓取</p>';
+      }
+      if (data.current_run) {
+        html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--c-border);">';
+        html += '<span style="color:var(--c-accent);font-weight:600;">正在运行中...</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      document.getElementById('scrape-status').innerHTML = html;
+    }
+
+    if (evt.detail.target.id === 'trigger-result') {
+      const data = JSON.parse(evt.detail.xhr.responseText);
+      const cls = data.status === 'started' ? 'color:var(--c-green);' : 'color:var(--c-orange);';
+      document.getElementById('trigger-result').innerHTML =
+        '<p style="' + cls + 'font-size:0.88rem;">' + data.message + '</p>';
+    }
+
+    if (evt.detail.target.id === 'scrape-history') {
+      const data = JSON.parse(evt.detail.xhr.responseText);
+      if (!data || data.length === 0) {
+        document.getElementById('scrape-history').innerHTML =
+          '<p style="color:var(--c-text-secondary);">暂无抓取记录</p>';
+        return;
+      }
+      let html = '<table><thead><tr><th>时间</th><th>平台</th><th>关键词</th><th>发现/新增</th><th>状态</th></tr></thead><tbody>';
+      data.forEach(r => {
+        const statusColor = r.status === 'success' ? 'var(--c-green)' :
+                           r.status === 'failed' ? 'var(--c-orange)' : 'var(--c-text-secondary)';
+        html += '<tr>';
+        html += '<td style="font-size:0.85rem;">' + (r.started_at ? new Date(r.started_at).toLocaleString('zh-CN') : '-') + '</td>';
+        html += '<td>' + (r.platform || '-') + '</td>';
+        html += '<td style="font-size:0.82rem;">' + (r.keyword || '-') + '</td>';
+        html += '<td>' + (r.jobs_found || 0) + ' / ' + (r.jobs_new || 0) + '</td>';
+        html += '<td style="color:' + statusColor + ';font-weight:600;">' + r.status + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('scrape-history').innerHTML = html;
+    }
+  });
+</script>
+{% endblock %}

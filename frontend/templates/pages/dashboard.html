@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}AI岗位监测 - 概览{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <h1>AI 非研发岗位招聘概览</h1>
+  <p>监测腾讯、字节跳动 AI 相关产品/运营等非研发岗位，每日 9:00 自动更新</p>
+</div>
+
+<!-- Stat Cards -->
+<div class="stat-grid" id="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.total_active }}</div>
+    <div class="stat-label">活跃岗位</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">累计收录 {{ stats.total_all_time }} 条</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.companies_tracked }}</div>
+    <div class="stat-label">监控公司</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ stats.new_last_7_days }}</div>
+    <div class="stat-label">近 7 天新增</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">
+      {% if stats.avg_salary_min %}
+      {{ "%.0f"|format(stats.avg_salary_min) }}K–{{ "%.0f"|format(stats.avg_salary_max) }}K
+      {% else %}—{% endif %}
+    </div>
+    <div class="stat-label">平均月薪范围</div>
+  </div>
+</div>
+
+<!-- Insight Summary -->
+<div id="insight-summary" hx-get="/api/analytics/insights" hx-trigger="load">
+  <div class="insight-summary">
+    <h3>&#9733; 今日招聘特征总结</h3>
+    <p style="color: var(--c-text-secondary);">加载中…</p>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <div class="card">
+    <div class="section-title">岗位类型分布</div>
+    {% if stats.top_types %}
+    <div class="chart-box"><canvas id="typeChart"></canvas></div>
+    {% else %}
+    <p style="color: var(--c-text-secondary);">暂无数据</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="section-title">热门 AI 能力要求</div>
+    <div id="concept-bars" hx-get="/api/analytics/insights" hx-trigger="load from:body"></div>
+  </div>
+</div>
+
+<!-- Skills Chart -->
+{% if stats.top_skills %}
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="section-title">高频技能关键词 Top 15</div>
+  <div class="chart-box" style="min-height: 380px;"><canvas id="skillsChart"></canvas></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const colors = ['#0066ff','#7c3aed','#16a34a','#ea580c','#0891b2','#db2777','#ca8a04','#2563eb',
+                  '#9333ea','#059669','#ea580c','#0e7490','#be185d','#a16207','#1d4ed8'];
+
+  {% if stats.top_types %}
+  new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ stats.top_types | map(attribute='type') | list | tojson }},
+      datasets: [{
+        data: {{ stats.top_types | map(attribute='count') | list | tojson }},
+        backgroundColor: colors.slice(0, {{ stats.top_types | length }}),
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverBorderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } },
+      }
+    }
+  });
+  {% endif %}
+
+  {% if stats.top_skills %}
+  new Chart(document.getElementById('skillsChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ stats.top_skills | map(attribute='name_cn') | list | tojson }},
+      datasets: [{
+        label: '提及次数',
+        data: {{ stats.top_skills | map(attribute='count') | list | tojson }},
+        backgroundColor: colors.slice(0, {{ stats.top_skills | length }}),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { color: '#f0f0ee' } } }
+    }
+  });
+  {% endif %}
+
+  // Handle insights loading
+  document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target.id === 'insight-summary') {
+      renderInsights(JSON.parse(evt.detail.xhr.responseText));
+    }
+    if (evt.detail.target.id === 'concept-bars') {
+      renderConceptBars(JSON.parse(evt.detail.xhr.responseText));
+    }
+  });
+})();
+
+function renderInsights(data) {
+  if (!data.summary_text) return;
+  const lines = data.summary_text;
+  let html = '<div class="insight-summary"><h3>&#9733; 今日招聘特征总结</h3>';
+  lines.forEach(line => {
+    html += '<div class="insight-item">' + line + '</div>';
+  });
+  html += '</div>';
+  document.getElementById('insight-summary').innerHTML = html;
+}
+
+function renderConceptBars(data) {
+  if (!data.ai_concept_percentages) return;
+  const concepts = data.ai_concept_percentages;
+  let html = '<div class="card"><div class="section-title">热门 AI 能力要求</div>';
+  for (const [name, pct] of Object.entries(concepts)) {
+    html += '<div class="concept-bar">';
+    html += '<div class="concept-bar-label">' + name + '</div>';
+    html += '<div class="concept-bar-track"><div class="concept-bar-fill" style="width:' + pct + '%"></div></div>';
+    html += '<div class="concept-bar-pct">' + pct + '%</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('concept-bars').innerHTML = html;
+}
+</script>
+{% endblock %}

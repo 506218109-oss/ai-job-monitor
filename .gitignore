@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+venv/
+
+# Database WAL/SHM (large binary, auto-generated)
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# Browser profiles
+backend/data/browser_profile/
+backend/data/browser_profile_liepin/
+backend/data/cookies/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.envrc

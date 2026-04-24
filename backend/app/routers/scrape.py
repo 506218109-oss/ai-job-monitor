@@ -1,0 +1,101 @@
+import asyncio
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, BackgroundTasks
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
+
+from app.database import get_db, SessionLocal
+from app.models import ScrapeRun
+from app.schemas import ScrapeTrigger
+from app.services.scraping_service import run_scrape
+
+router = APIRouter()
+
+
+def _run_scrape_sync(platform: str, keywords: list[str] = None):
+    """Wrapper to run async scrape from sync context."""
+    asyncio.run(run_scrape(platform, keywords))
+
+
+@router.get("/scrape/status")
+def get_scrape_status(db: Session = Depends(get_db)):
+    current = db.query(ScrapeRun).filter(ScrapeRun.status == "running").first()
+    last = db.query(ScrapeRun).filter(ScrapeRun.status != "running").order_by(
+        desc(ScrapeRun.finished_at)
+    ).first()
+
+    return {
+        "current_run": {
+            "id": current.id, "platform": current.platform, "keyword": current.keyword,
+            "started_at": current.started_at.isoformat() if current and current.started_at else None,
+            "status": current.status,
+        } if current else None,
+        "last_run": {
+            "id": last.id, "platform": last.platform,
+            "started_at": last.started_at.isoformat() if last and last.started_at else None,
+            "finished_at": last.finished_at.isoformat() if last and last.finished_at else None,
+            "status": last.status, "jobs_found": last.jobs_found, "jobs_new": last.jobs_new,
+            "error_message": last.error_message,
+        } if last else None,
+    }
+
+
+@router.get("/scrape/history")
+def get_scrape_history(limit: int = 20, db: Session = Depends(get_db)):
+    runs = db.query(ScrapeRun).order_by(desc(ScrapeRun.started_at)).limit(limit).all()
+    return [
+        {
+            "id": r.id, "platform": r.platform, "keyword": r.keyword,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "pages_scraped": r.pages_scraped, "jobs_found": r.jobs_found,
+            "jobs_new": r.jobs_new, "status": r.status,
+            "error_message": r.error_message,
+        }
+        for r in runs
+    ]
+
+
+@router.post("/scrape/trigger")
+def trigger_scrape(
+    body: ScrapeTrigger = None,
+    background_tasks: BackgroundTasks = None,
+    platform: str = None,
+    db: Session = Depends(get_db),
+):
+    # Support both body and query param for platform
+    if body and body.platform:
+        platforms = [body.platform]
+    elif platform:
+        platforms = [platform]
+    else:
+        platforms = ["liepin"]
+
+    keywords = body.keywords if body and body.keywords else None
+
+    if platforms == ["all"]:
+        platforms = ["tencent", "bytedance", "liepin"]
+
+    # Check if a scrape is already running
+    running = db.query(ScrapeRun).filter(ScrapeRun.status == "running").first()
+    if running:
+        return {"message": "Scrape already in progress", "status": "running", "run_id": running.id}
+
+    run_ids = []
+    for p in platforms:
+        run = ScrapeRun(
+            platform=p,
+            keyword=", ".join(keywords) if keywords else "default",
+            started_at=datetime.utcnow(),
+            status="pending",
+        )
+        db.add(run)
+        db.commit()
+        run_ids.append(run.id)
+
+        # Launch in background
+        if background_tasks:
+            background_tasks.add_task(_run_scrape_sync, p, keywords)
+
+    return {"message": f"Scrape started for {', '.join(platforms)}", "status": "started", "run_ids": run_ids}

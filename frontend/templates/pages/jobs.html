@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}AI岗位监测 - 岗位浏览{% endblock %}
+
+{% block content %}
+<div class="content-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+  <div>
+    <h1>岗位浏览</h1>
+    <p>浏览所有监测到的 AI 非研发岗位</p>
+  </div>
+  <a href="/api/analytics/export/csv" class="btn" style="margin-top:0.25rem;">导出 CSV</a>
+</div>
+
+<form id="filter-form"
+      hx-get="/api/jobs"
+      hx-trigger="change from:select, submit"
+      hx-target="#job-results"
+      hx-include="[name='keyword'],[name='per_page']">
+  <div class="filter-bar">
+    <select name="job_type">
+      <option value="">全部类型</option>
+      <option value="产品经理">产品经理</option>
+      <option value="AI运营">AI运营</option>
+      <option value="商业化/增长">商业化/增长</option>
+      <option value="训练/标注">训练/标注</option>
+      <option value="提示词工程">提示词工程</option>
+    </select>
+    <select name="location_city">
+      <option value="">全部城市</option>
+      <option value="北京">北京</option>
+      <option value="上海">上海</option>
+      <option value="深圳">深圳</option>
+      <option value="杭州">杭州</option>
+      <option value="成都">成都</option>
+    </select>
+    <select name="platform">
+      <option value="">全部平台</option>
+      <option value="tencent">腾讯</option>
+      <option value="bytedance">字节跳动</option>
+    </select>
+    <input type="text" name="keyword" placeholder="搜索关键词..." style="width:200px;">
+  </div>
+</form>
+
+<div class="card">
+  <div id="job-results"
+       hx-get="/api/jobs?page=1&per_page=20"
+       hx-trigger="load"
+       hx-include="#filter-form">
+    <p style="color: var(--c-text-secondary);">加载中…</p>
+  </div>
+</div>
+{% endblock %}

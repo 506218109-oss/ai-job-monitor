@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}岗位详情 - AI岗位监测{% endblock %}
+
+{% block content %}
+<div id="job-detail"
+     hx-get="/api/jobs/{{ job_id }}"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p style="color: var(--c-text-secondary);">加载中…</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target.id === 'job-detail' && evt.detail.requestConfig.path.startsWith('/api/jobs/')) {
+      const data = JSON.parse(evt.detail.xhr.responseText);
+      if (data.error) return;
+      document.title = data.title + ' - AI岗位监测';
+
+      const skillsHtml = (data.skills || []).map(s =>
+        '<span class="tag tag-blue">' + (s.name_cn || s.name) + '</span>'
+      ).join(' ');
+
+      const typeClass = {
+        '产品经理':'tag-blue','AI运营':'tag-green','商业化/增长':'tag-orange','训练/标注':'tag-purple'
+      }[data.job_type] || '';
+
+      const salaryText = data.salary_min
+        ? data.salary_min + 'K – ' + data.salary_max + 'K · ' + (data.salary_months || 12) + '薪'
+        : '面议';
+
+      const div = document.getElementById('job-detail');
+      div.innerHTML = `
+        <div class="detail-header">
+          <a href="/jobs" style="font-size:0.85rem;color:var(--c-text-secondary);">&larr; 返回岗位浏览</a>
+          <h1 style="margin-top:0.5rem;">${data.title}</h1>
+          <div class="detail-meta">
+            <span style="font-weight:600;">${data.company_name}</span>
+            <span style="color:var(--c-text-secondary);">${data.location_city || '-'} ${data.location_district || ''}</span>
+            ${data.job_subtype ? '<span style="color:var(--c-text-secondary);">' + data.job_subtype + '</span>' : ''}
+            <span class="tag ' + typeClass + '">${data.job_type}</span>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:2rem;">
+          <div class="card">
+            <div class="section-title">基本信息</div>
+            <table>
+              <tr><td style="color:var(--c-text-secondary);width:80px;">公司</td><td>${data.company_name}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">城市</td><td>${data.location_city || '-'} ${data.location_district || ''}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">类型</td><td><span class="tag ' + typeClass + '">${data.job_type}</span>${data.job_subtype ? ' / ' + data.job_subtype : ''}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">薪资</td><td>${salaryText}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">经验</td><td>${data.experience_required || '-'}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">学历</td><td>${data.education_required || '-'}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">发布</td><td>${data.posting_date || '-'}</td></tr>
+            </table>
+          </div>
+          <div class="card">
+            <div class="section-title">关联技能</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">${skillsHtml || '<span style="color:var(--c-text-secondary);">暂无</span>'}</div>
+            ${data.company_size ? '<p style="margin-top:1rem;"><strong>公司规模：</strong>' + data.company_size + '</p>' : ''}
+            ${data.company_industry ? '<p><strong>行业：</strong>' + data.company_industry + '</p>' : ''}
+            ${data.platform ? '<p style="margin-top:0.5rem;color:var(--c-text-secondary);font-size:0.82rem;">来源：' + data.platform + '</p>' : ''}
+          </div>
+        </div>
+
+        ${data.description_text ? `
+        <div class="card detail-section">
+          <div class="section-title">职位描述</div>
+          <div style="white-space:pre-wrap;line-height:1.9;font-size:0.93rem;">${escapeHtml(data.description_text)}</div>
+        </div>` : ''}
+      `;
+    }
+  });
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+</script>
+{% endblock %}

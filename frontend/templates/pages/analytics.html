@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}AI岗位监测 - 深度分析{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <h1>深度分析</h1>
+  <p>岗位结构、技能需求、薪资对比等多维度分析</p>
+</div>
+
+<div id="analytics-content" hx-get="/api/analytics/overview" hx-trigger="load">
+  <p style="color: var(--c-text-secondary);">加载中…</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+  if (evt.detail.target.id !== 'analytics-content') return;
+  const data = JSON.parse(evt.detail.xhr.responseText);
+
+  if (!data.total_active) {
+    document.getElementById('analytics-content').innerHTML =
+      '<div style="text-align:center;padding:3rem;color:var(--c-text-secondary);">' +
+      '<h3>暂无数据</h3><p style="margin:0.5rem 0 1rem;">请先执行抓取获取数据</p>' +
+      '<a href="/admin" class="btn btn-primary">前往管理面板</a></div>';
+    return;
+  }
+
+  const colors = ['#0066ff','#7c3aed','#16a34a','#ea580c','#0891b2','#db2777','#ca8a04','#2563eb',
+                  '#9333ea','#059669','#ea580c','#0e7490','#be185d','#a16207','#1d4ed8'];
+
+  document.getElementById('analytics-content').innerHTML = `
+    <div class="grid-2" style="margin-bottom:1.5rem;">
+      <div class="card">
+        <div class="section-title">岗位类型分布</div>
+        <div class="chart-box"><canvas id="chartType"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">技能要求 Top 15</div>
+        <div class="chart-box" style="min-height:380px;"><canvas id="chartSkills"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:1.5rem;">
+      <div class="card" id="salary-container">
+        <div class="section-title">各类型薪资对比</div>
+        <div class="chart-box"><canvas id="chartSalary"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">城市分布</div>
+        <div class="chart-box"><canvas id="chartCity"></canvas></div>
+      </div>
+    </div>
+  `;
+
+  new Chart(document.getElementById('chartType'), {
+    type: 'doughnut',
+    data: {
+      labels: data.top_types.map(d => d.type),
+      datasets: [{
+        data: data.top_types.map(d => d.count),
+        backgroundColor: colors.slice(0, data.top_types.length),
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '60%',
+      plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, font: { size: 12 } } } }
+    }
+  });
+
+  if (data.top_skills) {
+    const skills = data.top_skills.slice(0, 15);
+    new Chart(document.getElementById('chartSkills'), {
+      type: 'bar',
+      data: {
+        labels: skills.map(s => s.name_cn || s.name),
+        datasets: [{
+          label: '提及次数', data: skills.map(s => s.count),
+          backgroundColor: colors.slice(0, skills.length),
+          borderRadius: 4, borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: '#f0f0ee' } } }
+      }
+    });
+  }
+
+  fetch('/api/analytics/salary?group_by=job_type')
+    .then(r => r.json()).then(salaryData => {
+      new Chart(document.getElementById('chartSalary'), {
+        type: 'bar',
+        data: {
+          labels: salaryData.map(d => d.group),
+          datasets: [
+            { label: '平均最低 (K)', data: salaryData.map(d => d.avg_min), backgroundColor: colors[0], borderRadius: 4 },
+            { label: '平均最高 (K)', data: salaryData.map(d => d.avg_max), backgroundColor: colors[3], borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true } } }
+        }
+      });
+    });
+
+  fetch('/api/analytics/salary?group_by=location_city')
+    .then(r => r.json()).then(cityData => {
+      const filtered = cityData.filter(d => d.group && d.group !== 'None');
+      new Chart(document.getElementById('chartCity'), {
+        type: 'bar',
+        data: {
+          labels: filtered.map(d => d.group),
+          datasets: [{
+            label: '岗位数', data: filtered.map(d => d.count),
+            backgroundColor: colors[4], borderRadius: 4, borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: { x: { grid: { display: false } }, y: { grid: { color: '#f0f0ee' } } }
+        }
+      });
+    });
+});
+</script>
+{% endblock %}

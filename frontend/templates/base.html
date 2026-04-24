@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AI岗位监测{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="dot"></span> AI 岗位监测
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" {% if request.url.path == '/' %}class="active"{% endif %}>
+          <span class="nav-icon">&#9632;</span> 概览
+        </a>
+        <a href="/jobs" {% if request.url.path.startswith('/jobs') %}class="active"{% endif %}>
+          <span class="nav-icon">&#9776;</span> 岗位浏览
+        </a>
+        <a href="/analytics" {% if request.url.path == '/analytics' %}class="active"{% endif %}>
+          <span class="nav-icon">&#9733;</span> 深度分析
+        </a>
+        <a href="/admin" {% if request.url.path == '/admin' %}class="active"{% endif %}>
+          <span class="nav-icon">&#9881;</span> 管理
+        </a>
+      </nav>
+      <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--c-border); font-size: 0.75rem; color: var(--c-text-secondary);">
+        数据每日 9:00 更新<br>
+        腾讯 + 字节跳动
+      </div>
+    </aside>
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

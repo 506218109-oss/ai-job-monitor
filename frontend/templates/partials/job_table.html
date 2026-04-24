@@ -1,0 +1,55 @@
+{% if items | length > 0 %}
+<table>
+  <thead>
+    <tr>
+      <th>岗位名称</th>
+      <th>公司</th>
+      <th>城市</th>
+      <th>类型</th>
+      <th>经验</th>
+      <th>学历</th>
+      <th>发布日期</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in items %}
+    <tr>
+      <td><a href="/jobs/{{ job.id }}">{{ job.title }}</a></td>
+      <td>{{ job.company_name }}</td>
+      <td>{{ job.location_city or '-' }}</td>
+      <td>
+        {% if job.job_type == '产品经理' %}
+        <span class="tag tag-blue">{{ job.job_type }}</span>
+        {% elif job.job_type == 'AI运营' %}
+        <span class="tag tag-green">{{ job.job_type }}</span>
+        {% elif job.job_type == '商业化/增长' %}
+        <span class="tag tag-orange">{{ job.job_type }}</span>
+        {% elif job.job_type == '训练/标注' %}
+        <span class="tag tag-purple">{{ job.job_type }}</span>
+        {% else %}
+        <span class="tag">{{ job.job_type }}</span>
+        {% endif %}
+      </td>
+      <td>{{ job.experience_required or '-' }}</td>
+      <td>{{ job.education_required or '-' }}</td>
+      <td>{{ job.posting_date or '-' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top: 1rem; padding: 0 0.5rem;">
+  <small style="color: var(--c-text-secondary);">共 {{ total }} 条，第 {{ page }}/{{ pages }} 页</small>
+  <div class="pagination">
+    {% if page > 1 %}
+    <a href="#" hx-get="/api/jobs?page={{ page - 1 }}&per_page=20" hx-target="#job-results" hx-include="#filter-form">← 上一页</a>
+    {% endif %}
+    {% if page < pages %}
+    <a href="#" hx-get="/api/jobs?page={{ page + 1 }}&per_page=20" hx-target="#job-results" hx-include="#filter-form">下一页 →</a>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div style="text-align:center; padding:3rem; color: var(--c-text-secondary);">
+  <p>没有找到匹配的岗位</p>
+</div>
+{% endif %}
