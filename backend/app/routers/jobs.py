@@ -6,7 +6,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import Job, JobSkill, Skill
 
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "templates"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "frontend" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 router = APIRouter()

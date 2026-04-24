@@ -14,8 +14,8 @@ from app.database import SessionLocal
 from app.models import Job, Company, JobSnapshot, Skill, JobSkill
 from app.routers import jobs, analytics, skills, companies, scrape
 
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "templates"
-STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "static"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "frontend" / "templates"
+STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend" / "static"
 
 app = FastAPI(title="AI Job Monitor", version="1.0.0")
 
