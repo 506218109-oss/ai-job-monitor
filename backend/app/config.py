@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from pathlib import Path
 
@@ -5,11 +6,6 @@ from pathlib import Path
 class Settings(BaseSettings):
     PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
     DATABASE_URL: str = f"sqlite:///{PROJECT_ROOT}/data/jobs.db"
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Ensure data directory exists (needed for fresh deploys)
-        (self.PROJECT_ROOT / "data").mkdir(parents=True, exist_ok=True)
     SCRAPE_INTERVAL_HOURS: int = 24
     SCRAPE_TIME_HOUR: int = 9
     SCRAPE_TIME_MINUTE: int = 0

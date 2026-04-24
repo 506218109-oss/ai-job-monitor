@@ -105,10 +105,18 @@ def get_overview_stats():
         db.close()
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/")
 async def dashboard_page(request: Request):
-    stats = get_overview_stats()
-    return templates.TemplateResponse("pages/dashboard.html", {"request": request, "stats": stats})
+    try:
+        stats = get_overview_stats()
+        return templates.TemplateResponse("pages/dashboard.html", {"request": request, "stats": stats})
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 
 @app.get("/jobs")
