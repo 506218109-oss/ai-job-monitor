@@ -6,7 +6,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import Job, JobSkill, Skill
 
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "frontend" / "templates"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 router = APIRouter()
@@ -83,14 +83,20 @@ def list_jobs(
             "posting_date": job.posting_date.isoformat() if job.posting_date else None,
             "is_active": job.is_active,
             "skills": [
-                {"id": js.skill.id, "name": js.skill.name, "name_cn": js.skill.name_cn, "category": js.skill.category}
+                {
+                    "id": js.skill.id,
+                    "name": js.skill.name,
+                    "name_cn": js.skill.name_cn,
+                    "category": js.skill.category,
+                    "category_label": _skill_category_label(js.skill.category),
+                }
                 for js in job.job_skills
             ],
         })
 
     pages = max(1, (total + per_page - 1) // per_page)
 
-    if "hx-request" in request.headers:
+    if request.headers.get("HX-Request") == "true" or request.headers.get("hx-request") == "true":
         return templates.TemplateResponse("partials/job_table.html", {
             "request": request, "items": result, "total": total, "page": page, "pages": pages
         })
@@ -126,7 +132,24 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         "last_seen_at": job.last_seen_at.isoformat() if job.last_seen_at else None,
         "is_active": job.is_active,
         "skills": [
-            {"id": js.skill.id, "name": js.skill.name, "name_cn": js.skill.name_cn, "category": js.skill.category}
+            {
+                "id": js.skill.id,
+                "name": js.skill.name,
+                "name_cn": js.skill.name_cn,
+                "category": js.skill.category,
+                "category_label": _skill_category_label(js.skill.category),
+            }
             for js in job.job_skills
         ],
     }
+
+
+def _skill_category_label(category: str) -> str:
+    labels = {
+        "ai_knowledge": "AI技术认知",
+        "product": "产品能力",
+        "data": "数据/指标能力",
+        "domain": "业务与商业化能力",
+        "soft": "通用协作能力",
+    }
+    return labels.get(category, category or "其他")

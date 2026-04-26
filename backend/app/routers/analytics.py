@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from datetime import date, timedelta
-import json
+from datetime import date, datetime, time, timedelta
 
 from app.database import get_db
 from app.models import Job, JobSnapshot, JobSkill, Skill, Company
@@ -14,7 +13,19 @@ router = APIRouter()
 def get_overview(db: Session = Depends(get_db)):
     total_active = db.query(func.count(Job.id)).filter(Job.is_active == True).scalar() or 0
     total_all_time = db.query(func.count(Job.id)).scalar() or 0
-    seven_days_ago = date.today() - timedelta(days=7)
+    today = date.today()
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = today_start + timedelta(days=1)
+    seven_days_ago = today_start - timedelta(days=7)
+    today_new = db.query(func.count(Job.id)).filter(
+        Job.first_seen_at >= today_start,
+        Job.first_seen_at < tomorrow_start,
+    ).scalar() or 0
+    removed_today = db.query(func.count(Job.id)).filter(
+        Job.is_active == False,
+        Job.last_seen_at >= today_start,
+        Job.last_seen_at < tomorrow_start,
+    ).scalar() or 0
     new_7days = db.query(func.count(Job.id)).filter(
         Job.first_seen_at >= seven_days_ago
     ).scalar() or 0
@@ -41,6 +52,8 @@ def get_overview(db: Session = Depends(get_db)):
     return {
         "total_active": total_active,
         "total_all_time": total_all_time,
+        "today_new": today_new,
+        "removed_today": removed_today,
         "new_last_7_days": new_7days,
         "companies_tracked": companies_count,
         "avg_salary_min": round(avg_sal[0], 1) if avg_sal and avg_sal[0] else 0,

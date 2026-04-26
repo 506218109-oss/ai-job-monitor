@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}岗位详情 - AI岗位监测{% endblock %}
+{% block title %}岗位详情 - AI求职趋势雷达{% endblock %}
 
 {% block content %}
 <div id="job-detail"
@@ -16,11 +16,12 @@
     if (evt.detail.target.id === 'job-detail' && evt.detail.requestConfig.path.startsWith('/api/jobs/')) {
       const data = JSON.parse(evt.detail.xhr.responseText);
       if (data.error) return;
-      document.title = data.title + ' - AI岗位监测';
+      document.title = data.title + ' - AI求职趋势雷达';
 
       const skillsHtml = (data.skills || []).map(s =>
-        '<span class="tag tag-blue">' + (s.name_cn || s.name) + '</span>'
+        '<span class="tag tag-blue" title="' + escapeHtml(s.category_label || '') + '">' + escapeHtml(s.name_cn || s.name) + '</span>'
       ).join(' ');
+      const preparationHtml = buildPreparation(data);
 
       const typeClass = {
         '产品经理':'tag-blue','AI运营':'tag-green','商业化/增长':'tag-orange','训练/标注':'tag-purple'
@@ -33,13 +34,13 @@
       const div = document.getElementById('job-detail');
       div.innerHTML = `
         <div class="detail-header">
-          <a href="/jobs" style="font-size:0.85rem;color:var(--c-text-secondary);">&larr; 返回岗位浏览</a>
+          <a href="/jobs" style="font-size:0.85rem;color:var(--c-text-secondary);">&larr; 返回岗位证据库</a>
           <h1 style="margin-top:0.5rem;">${data.title}</h1>
           <div class="detail-meta">
             <span style="font-weight:600;">${data.company_name}</span>
             <span style="color:var(--c-text-secondary);">${data.location_city || '-'} ${data.location_district || ''}</span>
             ${data.job_subtype ? '<span style="color:var(--c-text-secondary);">' + data.job_subtype + '</span>' : ''}
-            <span class="tag ' + typeClass + '">${data.job_type}</span>
+            <span class="tag ${typeClass}">${data.job_type}</span>
           </div>
         </div>
 
@@ -49,7 +50,7 @@
             <table>
               <tr><td style="color:var(--c-text-secondary);width:80px;">公司</td><td>${data.company_name}</td></tr>
               <tr><td style="color:var(--c-text-secondary);">城市</td><td>${data.location_city || '-'} ${data.location_district || ''}</td></tr>
-              <tr><td style="color:var(--c-text-secondary);">类型</td><td><span class="tag ' + typeClass + '">${data.job_type}</span>${data.job_subtype ? ' / ' + data.job_subtype : ''}</td></tr>
+              <tr><td style="color:var(--c-text-secondary);">类型</td><td><span class="tag ${typeClass}">${data.job_type}</span>${data.job_subtype ? ' / ' + data.job_subtype : ''}</td></tr>
               <tr><td style="color:var(--c-text-secondary);">薪资</td><td>${salaryText}</td></tr>
               <tr><td style="color:var(--c-text-secondary);">经验</td><td>${data.experience_required || '-'}</td></tr>
               <tr><td style="color:var(--c-text-secondary);">学历</td><td>${data.education_required || '-'}</td></tr>
@@ -57,7 +58,7 @@
             </table>
           </div>
           <div class="card">
-            <div class="section-title">关联技能</div>
+            <div class="section-title">JD 命中能力</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;">${skillsHtml || '<span style="color:var(--c-text-secondary);">暂无</span>'}</div>
             ${data.company_size ? '<p style="margin-top:1rem;"><strong>公司规模：</strong>' + data.company_size + '</p>' : ''}
             ${data.company_industry ? '<p><strong>行业：</strong>' + data.company_industry + '</p>' : ''}
@@ -65,9 +66,14 @@
           </div>
         </div>
 
+        <div class="card detail-section">
+          <div class="section-title">求职准备解读</div>
+          ${preparationHtml}
+        </div>
+
         ${data.description_text ? `
         <div class="card detail-section">
-          <div class="section-title">职位描述</div>
+          <div class="section-title">JD 原文证据</div>
           <div style="white-space:pre-wrap;line-height:1.9;font-size:0.93rem;">${escapeHtml(data.description_text)}</div>
         </div>` : ''}
       `;
@@ -78,6 +84,33 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  function buildPreparation(data) {
+    const skills = data.skills || [];
+    const categories = new Set(skills.map(s => s.category));
+    const points = [];
+
+    if (categories.has('ai_knowledge')) {
+      points.push('把简历里的 AI 认知写成具体项目：场景、模型/工具、输入输出、评估指标和迭代结果。');
+    }
+    if (categories.has('product')) {
+      points.push('准备产品规划、需求拆解、PRD、指标体系和跨团队推动的完整案例。');
+    }
+    if (categories.has('data')) {
+      points.push('突出数据分析、指标看板、A/B 实验或用户反馈闭环，不要只写“数据敏感”。');
+    }
+    if (categories.has('domain')) {
+      points.push('补充行业场景、商业化路径或 C/B 端业务理解，说明 AI 如何带来业务结果。');
+    }
+    if (categories.has('soft')) {
+      points.push('用项目节奏、沟通对象和结果证明协作能力，避免空泛描述。');
+    }
+    if (!points.length) {
+      points.push('该岗位暂未命中明确能力标签，建议从 JD 原文中提炼业务场景、目标用户和关键交付物。');
+    }
+
+    return '<ul class="prep-list">' + points.map(p => '<li>' + escapeHtml(p) + '</li>').join('') + '</ul>';
   }
 </script>
 {% endblock %}

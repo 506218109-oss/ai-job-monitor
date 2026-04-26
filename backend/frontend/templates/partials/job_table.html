@@ -6,6 +6,7 @@
       <th>公司</th>
       <th>城市</th>
       <th>类型</th>
+      <th>命中能力</th>
       <th>经验</th>
       <th>学历</th>
       <th>发布日期</th>
@@ -30,6 +31,15 @@
         <span class="tag">{{ job.job_type }}</span>
         {% endif %}
       </td>
+      <td>
+        {% if job.skills %}
+          {% for skill in job.skills[:3] %}
+          <span class="tag tag-blue">{{ skill.name_cn or skill.name }}</span>
+          {% endfor %}
+        {% else %}
+          <span style="color: var(--c-text-secondary);">-</span>
+        {% endif %}
+      </td>
       <td>{{ job.experience_required or '-' }}</td>
       <td>{{ job.education_required or '-' }}</td>
       <td>{{ job.posting_date or '-' }}</td>
@@ -38,7 +48,7 @@
   </tbody>
 </table>
 <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 1rem; padding: 0 0.5rem;">
-  <small style="color: var(--c-text-secondary);">共 {{ total }} 条，第 {{ page }}/{{ pages }} 页</small>
+  <small style="color: var(--c-text-secondary);">共 {{ total }} 条岗位证据，第 {{ page }}/{{ pages }} 页</small>
   <div class="pagination">
     {% if page > 1 %}
     <a href="#" hx-get="/api/jobs?page={{ page - 1 }}&per_page=20" hx-target="#job-results" hx-include="#filter-form">← 上一页</a>

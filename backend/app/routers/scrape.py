@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from app.database import get_db, SessionLocal
 from app.models import ScrapeRun
 from app.schemas import ScrapeTrigger
+from app.config import settings
 from app.services.scraping_service import run_scrape
 
 router = APIRouter()
@@ -21,6 +22,13 @@ def _run_scrape_sync(platform: str, keywords: list[str] = None):
 @router.get("/scrape/status")
 def get_scrape_status(db: Session = Depends(get_db)):
     current = db.query(ScrapeRun).filter(ScrapeRun.status == "running").first()
+    if current and current.started_at and current.started_at < datetime.utcnow() - timedelta(minutes=30):
+        current.status = "failed"
+        current.finished_at = datetime.utcnow()
+        current.error_message = current.error_message or "运行超过 30 分钟，已自动标记为超时"
+        db.commit()
+        current = None
+
     last = db.query(ScrapeRun).filter(ScrapeRun.status != "running").order_by(
         desc(ScrapeRun.finished_at)
     ).first()
@@ -70,12 +78,12 @@ def trigger_scrape(
     elif platform:
         platforms = [platform]
     else:
-        platforms = ["liepin"]
+        platforms = [settings.DEFAULT_PLATFORM]
 
     keywords = body.keywords if body and body.keywords else None
 
     if platforms == ["all"]:
-        platforms = ["tencent", "bytedance", "liepin"]
+        platforms = ["tencent", "bytedance"]
 
     # Check if a scrape is already running
     running = db.query(ScrapeRun).filter(ScrapeRun.status == "running").first()

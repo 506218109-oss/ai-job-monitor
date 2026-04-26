@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% block title %}AI岗位监测 - 概览{% endblock %}
+{% block title %}AI求职趋势雷达 - 今日雷达{% endblock %}
 
 {% block content %}
 <div class="content-header">
-  <h1>AI 非研发岗位招聘概览</h1>
-  <p>监测腾讯、字节跳动 AI 相关产品/运营等非研发岗位，每日 9:00 自动更新</p>
+  <h1>AI 求职趋势雷达</h1>
+  <p>每日追踪腾讯、字节 AI 相关岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点，帮助判断 AI 产品/运营/商业化岗位的真实招聘趋势与准备重点。</p>
 </div>
 
-<!-- Stat Cards -->
 <div class="stat-grid" id="stats-grid">
   <div class="stat-card">
     <div class="stat-value">{{ stats.total_active }}</div>
@@ -15,35 +14,32 @@
     <div class="stat-change" style="color: var(--c-text-secondary);">累计收录 {{ stats.total_all_time }} 条</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">{{ stats.companies_tracked }}</div>
-    <div class="stat-label">监控公司</div>
+    <div class="stat-value">{{ stats.today_new }}</div>
+    <div class="stat-label">今日新增</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">下线 {{ stats.removed_today }} 条</div>
   </div>
   <div class="stat-card">
     <div class="stat-value">{{ stats.new_last_7_days }}</div>
     <div class="stat-label">近 7 天新增</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">注意区分首次导入基线</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">
-      {% if stats.avg_salary_min %}
-      {{ "%.0f"|format(stats.avg_salary_min) }}K–{{ "%.0f"|format(stats.avg_salary_max) }}K
-      {% else %}—{% endif %}
-    </div>
-    <div class="stat-label">平均月薪范围</div>
+    <div class="stat-value">{{ stats.companies_tracked }}</div>
+    <div class="stat-label">监控公司</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">腾讯 + 字节跳动</div>
   </div>
 </div>
 
-<!-- Insight Summary -->
-<div id="insight-summary" hx-get="/api/analytics/insights" hx-trigger="load">
+<div id="daily-radar" hx-get="/api/analytics/insights" hx-trigger="load">
   <div class="insight-summary">
-    <h3>&#9733; 今日招聘特征总结</h3>
-    <p style="color: var(--c-text-secondary);">加载中…</p>
+    <h3>今日求职雷达</h3>
+    <p style="color: var(--c-text-secondary);">正在生成今日趋势解释…</p>
   </div>
 </div>
 
-<!-- Charts Row -->
 <div class="grid-2" style="margin-bottom: 2rem;">
   <div class="card">
-    <div class="section-title">岗位类型分布</div>
+    <div class="section-title">今天这两家公司在招什么</div>
     {% if stats.top_types %}
     <div class="chart-box"><canvas id="typeChart"></canvas></div>
     {% else %}
@@ -51,15 +47,29 @@
     {% endif %}
   </div>
   <div class="card">
-    <div class="section-title">热门 AI 能力要求</div>
+    <div class="section-title">JD 中的高频 AI 信号</div>
     <div id="concept-bars" hx-get="/api/analytics/insights" hx-trigger="load from:body"></div>
   </div>
 </div>
 
-<!-- Skills Chart -->
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <div class="card">
+    <div class="section-title">行业/KOL观点如何映射到招聘</div>
+    <div id="market-signals" hx-get="/api/analytics/insights" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title">我该如何准备</div>
+    <div id="career-advice" hx-get="/api/analytics/insights" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+  </div>
+</div>
+
 {% if stats.top_skills %}
 <div class="card" style="margin-bottom: 2rem;">
-  <div class="section-title">高频技能关键词 Top 15</div>
+  <div class="section-title">高频能力关键词 Top 15</div>
   <div class="chart-box" style="min-height: 380px;"><canvas id="skillsChart"></canvas></div>
 </div>
 {% endif %}
@@ -118,32 +128,47 @@
   });
   {% endif %}
 
-  // Handle insights loading
   document.body.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'insight-summary') {
-      renderInsights(JSON.parse(evt.detail.xhr.responseText));
+    if (evt.detail.target.id === 'daily-radar') {
+      renderDailyRadar(JSON.parse(evt.detail.xhr.responseText));
     }
     if (evt.detail.target.id === 'concept-bars') {
       renderConceptBars(JSON.parse(evt.detail.xhr.responseText));
     }
+    if (evt.detail.target.id === 'market-signals') {
+      renderMarketSignals(JSON.parse(evt.detail.xhr.responseText));
+    }
+    if (evt.detail.target.id === 'career-advice') {
+      renderCareerAdvice(JSON.parse(evt.detail.xhr.responseText));
+    }
   });
 })();
 
-function renderInsights(data) {
-  if (!data.summary_text) return;
-  const lines = data.summary_text;
-  let html = '<div class="insight-summary"><h3>&#9733; 今日招聘特征总结</h3>';
-  lines.forEach(line => {
-    html += '<div class="insight-item">' + line + '</div>';
+function renderDailyRadar(data) {
+  if (!data.daily_radar) return;
+  let html = '<div class="insight-summary"><h3>今日求职雷达</h3>';
+  html += '<p class="insight-lead">' + escapeHtml(data.positioning || '') + '</p>';
+  html += '<div class="radar-grid">';
+  data.daily_radar.forEach(item => {
+    html += '<div class="radar-item"><div class="radar-label">' + escapeHtml(item.label) + '</div>';
+    html += '<div class="radar-value">' + escapeHtml(item.value) + '</div>';
+    html += '<p>' + escapeHtml(item.detail) + '</p></div>';
   });
   html += '</div>';
-  document.getElementById('insight-summary').innerHTML = html;
+  html += '<div class="insight-lines">';
+  (data.summary_text || []).forEach(line => {
+    html += '<div class="insight-item">' + escapeHtml(line) + '</div>';
+  });
+  html += '</div>';
+  html += '<p class="data-note">' + escapeHtml(data.data_note || '') + '</p>';
+  html += '</div>';
+  document.getElementById('daily-radar').innerHTML = html;
 }
 
 function renderConceptBars(data) {
   if (!data.ai_concept_percentages) return;
   const concepts = data.ai_concept_percentages;
-  let html = '<div class="card"><div class="section-title">热门 AI 能力要求</div>';
+  let html = '<div class="concept-list">';
   for (const [name, pct] of Object.entries(concepts)) {
     html += '<div class="concept-bar">';
     html += '<div class="concept-bar-label">' + name + '</div>';
@@ -153,6 +178,44 @@ function renderConceptBars(data) {
   }
   html += '</div>';
   document.getElementById('concept-bars').innerHTML = html;
+}
+
+function renderMarketSignals(data) {
+  if (!data.market_signals) return;
+  let html = '<div class="signal-list">';
+  data.market_signals.forEach(signal => {
+    const matched = (signal.job_signal || []).filter(s => s.pct > 0)
+      .map(s => '<span class="tag tag-blue">' + escapeHtml(s.name) + ' ' + s.pct + '%</span>').join(' ');
+    html += '<div class="signal-item">';
+    html += '<div class="signal-head"><span>' + escapeHtml(signal.topic) + '</span><small>' + escapeHtml(signal.source_type) + '</small></div>';
+    html += '<p>' + escapeHtml(signal.viewpoint) + '</p>';
+    html += matched ? '<div class="tag-row">' + matched + '</div>' : '<div class="muted-small">当前 JD 信号较弱，继续观察。</div>';
+    html += '<div class="advice-line">' + escapeHtml(signal.advice) + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('market-signals').innerHTML = html;
+}
+
+function renderCareerAdvice(data) {
+  if (!data.career_advice) return;
+  let html = '<div class="advice-list">';
+  data.career_advice.slice(0, 3).forEach(item => {
+    html += '<div class="advice-card">';
+    html += '<h4>' + escapeHtml(item.role) + '</h4>';
+    html += '<p>' + escapeHtml(item.signal) + '</p>';
+    html += '<ul>';
+    item.prepare.forEach(point => { html += '<li>' + escapeHtml(point) + '</li>'; });
+    html += '</ul></div>';
+  });
+  html += '</div>';
+  document.getElementById('career-advice').innerHTML = html;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
 }
 </script>
 {% endblock %}

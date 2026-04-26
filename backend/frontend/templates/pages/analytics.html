@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}AI岗位监测 - 深度分析{% endblock %}
+{% block title %}AI求职趋势雷达 - 能力趋势{% endblock %}
 
 {% block content %}
 <div class="content-header">
-  <h1>深度分析</h1>
-  <p>岗位结构、技能需求、薪资对比等多维度分析</p>
+  <h1>能力趋势</h1>
+  <p>把腾讯、字节 JD 拆成 AI 技术认知、产品能力、数据能力、业务商业化和通用协作能力，辅助判断简历与面试准备重点。</p>
 </div>
 
 <div id="analytics-content" hx-get="/api/analytics/overview" hx-trigger="load">
@@ -36,18 +36,32 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
         <div class="chart-box"><canvas id="chartType"></canvas></div>
       </div>
       <div class="card">
-        <div class="section-title">技能要求 Top 15</div>
+        <div class="section-title">能力关键词 Top 15</div>
         <div class="chart-box" style="min-height:380px;"><canvas id="chartSkills"></canvas></div>
       </div>
     </div>
     <div class="grid-2" style="margin-bottom:1.5rem;">
-      <div class="card" id="salary-container">
-        <div class="section-title">各类型薪资对比</div>
-        <div class="chart-box"><canvas id="chartSalary"></canvas></div>
+      <div class="card">
+        <div class="section-title">公司样本占比</div>
+        <div class="chart-box"><canvas id="chartCompany"></canvas></div>
       </div>
       <div class="card">
         <div class="section-title">城市分布</div>
         <div class="chart-box"><canvas id="chartCity"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="section-title">能力分层与求职解释</div>
+      <div id="skill-groups"><p style="color:var(--c-text-secondary);">加载中…</p></div>
+    </div>
+    <div class="grid-2" style="margin-bottom:1.5rem;">
+      <div class="card">
+        <div class="section-title">趋势证据样例</div>
+        <div id="evidence-examples"><p style="color:var(--c-text-secondary);">加载中…</p></div>
+      </div>
+      <div class="card">
+        <div class="section-title">按岗位类型准备</div>
+        <div id="role-advice"><p style="color:var(--c-text-secondary);">加载中…</p></div>
       </div>
     </div>
   `;
@@ -88,43 +102,107 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     });
   }
 
-  fetch('/api/analytics/salary?group_by=job_type')
-    .then(r => r.json()).then(salaryData => {
-      new Chart(document.getElementById('chartSalary'), {
-        type: 'bar',
-        data: {
-          labels: salaryData.map(d => d.group),
-          datasets: [
-            { label: '平均最低 (K)', data: salaryData.map(d => d.avg_min), backgroundColor: colors[0], borderRadius: 4 },
-            { label: '平均最高 (K)', data: salaryData.map(d => d.avg_max), backgroundColor: colors[3], borderRadius: 4 }
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: true,
-          plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true } } }
-        }
-      });
+  if (data.top_companies) {
+    new Chart(document.getElementById('chartCompany'), {
+      type: 'bar',
+      data: {
+        labels: data.top_companies.map(d => d.name),
+        datasets: [{
+          label: '岗位数', data: data.top_companies.map(d => d.count),
+          backgroundColor: colors[6], borderRadius: 4, borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: '#f0f0ee' } } }
+      }
     });
+  }
 
-  fetch('/api/analytics/salary?group_by=location_city')
-    .then(r => r.json()).then(cityData => {
-      const filtered = cityData.filter(d => d.group && d.group !== 'None');
-      new Chart(document.getElementById('chartCity'), {
-        type: 'bar',
-        data: {
-          labels: filtered.map(d => d.group),
-          datasets: [{
-            label: '岗位数', data: filtered.map(d => d.count),
-            backgroundColor: colors[4], borderRadius: 4, borderSkipped: false
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: true,
-          plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false } }, y: { grid: { color: '#f0f0ee' } } }
-        }
-      });
+  fetch('/api/analytics/insights')
+    .then(r => r.json())
+    .then(insights => {
+      renderCityChart(insights.city_distribution || [], colors);
+      renderSkillGroups(insights.skill_groups || []);
+      renderEvidence(insights.evidence_examples || {});
+      renderRoleAdvice(insights.career_advice || []);
     });
 });
+
+function renderCityChart(cities, colors) {
+  new Chart(document.getElementById('chartCity'), {
+    type: 'bar',
+    data: {
+      labels: cities.map(d => d.city),
+      datasets: [{
+        label: '岗位数', data: cities.map(d => d.count),
+        backgroundColor: colors[4], borderRadius: 4, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false } }, y: { grid: { color: '#f0f0ee' } } }
+    }
+  });
+}
+
+function renderSkillGroups(groups) {
+  if (!groups.length) return;
+  let html = '<div class="ability-grid">';
+  groups.forEach(group => {
+    html += '<div class="ability-group">';
+    html += '<h4>' + escapeHtml(group.label) + '</h4>';
+    html += '<div class="tag-row">';
+    group.skills.slice(0, 6).forEach(skill => {
+      html += '<span class="tag tag-blue">' + escapeHtml(skill.name) + ' ' + skill.pct + '%</span>';
+    });
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('skill-groups').innerHTML = html;
+}
+
+function renderEvidence(examples) {
+  const entries = Object.entries(examples).slice(0, 4);
+  if (!entries.length) return;
+  let html = '<div class="evidence-list">';
+  entries.forEach(([concept, jobs]) => {
+    html += '<div class="evidence-block"><h4>' + escapeHtml(concept) + '</h4>';
+    jobs.slice(0, 2).forEach(job => {
+      html += '<a class="evidence-link" href="/jobs/' + job.id + '">';
+      html += '<strong>' + escapeHtml(job.title) + '</strong>';
+      html += '<span>' + escapeHtml(job.company_name) + ' · ' + escapeHtml(job.location_city || '-') + ' · ' + escapeHtml(job.job_type) + '</span>';
+      if (job.snippet) html += '<p>' + escapeHtml(job.snippet) + '</p>';
+      html += '</a>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('evidence-examples').innerHTML = html;
+}
+
+function renderRoleAdvice(items) {
+  if (!items.length) return;
+  let html = '<div class="advice-list compact">';
+  items.forEach(item => {
+    html += '<div class="advice-card">';
+    html += '<h4>' + escapeHtml(item.role) + '</h4>';
+    html += '<p>' + escapeHtml(item.signal) + '</p>';
+    html += '<ul>';
+    item.prepare.slice(0, 2).forEach(point => { html += '<li>' + escapeHtml(point) + '</li>'; });
+    html += '</ul></div>';
+  });
+  html += '</div>';
+  document.getElementById('role-advice').innerHTML = html;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
 </script>
 {% endblock %}

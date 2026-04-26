@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}AI岗位监测 - 岗位浏览{% endblock %}
+{% block title %}AI求职趋势雷达 - 岗位证据库{% endblock %}
 
 {% block content %}
 <div class="content-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
   <div>
-    <h1>岗位浏览</h1>
-    <p>浏览所有监测到的 AI 非研发岗位</p>
+    <h1>岗位证据库</h1>
+    <p>按公司、城市、岗位类型和关键词追溯 JD 原文，验证每条趋势背后的岗位证据。</p>
   </div>
   <a href="/api/analytics/export/csv" class="btn" style="margin-top:0.25rem;">导出 CSV</a>
 </div>
@@ -14,7 +14,7 @@
       hx-get="/api/jobs"
       hx-trigger="change from:select, submit"
       hx-target="#job-results"
-      hx-include="[name='keyword'],[name='per_page']">
+      hx-include="#filter-form">
   <div class="filter-bar">
     <select name="job_type">
       <option value="">全部类型</option>
@@ -37,7 +37,8 @@
       <option value="tencent">腾讯</option>
       <option value="bytedance">字节跳动</option>
     </select>
-    <input type="text" name="keyword" placeholder="搜索关键词..." style="width:200px;">
+    <input type="text" name="keyword" placeholder="搜索 Agent / RAG / 评测..." style="width:230px;">
+    <button type="submit" class="btn">搜索证据</button>
   </div>
 </form>
 

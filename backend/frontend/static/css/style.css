@@ -19,7 +19,7 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   --radius: 8px;
-  --radius-lg: 12px;
+  --radius-lg: 8px;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
@@ -41,8 +41,8 @@ body {
   min-height: 100vh;
 }
 
-h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
-h2 { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 0; }
+h2 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0; }
 h3 { font-size: 1.1rem; font-weight: 600; }
 h4 { font-size: 1rem; font-weight: 600; }
 
@@ -140,7 +140,7 @@ a:hover { text-decoration: underline; }
 .stat-value {
   font-size: 2.2rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   line-height: 1.1;
   color: var(--c-text);
 }
@@ -177,6 +177,48 @@ a:hover { text-decoration: underline; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 0.75rem;
+}
+.insight-lead {
+  color: var(--c-text);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  max-width: 920px;
+}
+.radar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.radar-item {
+  background: rgba(255,255,255,0.72);
+  border: 1px solid #dbe5fb;
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  min-height: 132px;
+}
+.radar-label {
+  color: var(--c-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+.radar-value {
+  color: var(--c-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.radar-item p,
+.data-note {
+  color: var(--c-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin-top: 0.35rem;
+}
+.insight-lines {
+  border-top: 1px solid #dbe5fb;
+  padding-top: 0.65rem;
 }
 .insight-item {
   font-size: 0.95rem;
@@ -266,6 +308,98 @@ tr:hover td { background: #fafaf9; }
   font-weight: 600;
   color: var(--c-text-secondary);
   flex-shrink: 0;
+}
+.concept-list { padding-top: 0.1rem; }
+.signal-list,
+.advice-list,
+.evidence-list {
+  display: grid;
+  gap: 0.9rem;
+}
+.signal-item,
+.advice-card,
+.evidence-block,
+.ability-group {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: #fff;
+}
+.signal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+.signal-head span,
+.advice-card h4,
+.ability-group h4,
+.evidence-block h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.signal-head small,
+.muted-small {
+  color: var(--c-text-secondary);
+  font-size: 0.78rem;
+}
+.signal-item p,
+.advice-card p {
+  color: var(--c-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin-bottom: 0.55rem;
+}
+.advice-line {
+  border-left: 3px solid var(--c-accent);
+  padding-left: 0.65rem;
+  color: var(--c-text);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  margin-top: 0.55rem;
+}
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.advice-card ul,
+.prep-list {
+  margin-left: 1rem;
+  color: var(--c-text);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+.advice-list.compact .advice-card {
+  padding: 0.85rem;
+}
+.ability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.evidence-link {
+  display: block;
+  border-top: 1px solid var(--c-border);
+  padding: 0.75rem 0 0;
+  margin-top: 0.75rem;
+  color: var(--c-text);
+}
+.evidence-link:hover {
+  text-decoration: none;
+}
+.evidence-link strong {
+  display: block;
+  font-size: 0.9rem;
+}
+.evidence-link span,
+.evidence-link p {
+  display: block;
+  color: var(--c-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin-top: 0.25rem;
 }
 
 /* ===== Filters ===== */
@@ -391,10 +525,13 @@ tr:hover td { background: #fafaf9; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr 1fr; }
+  .radar-grid { grid-template-columns: repeat(2, 1fr); }
+  .ability-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .sidebar { display: none; }
   .main-content { margin-left: 0; padding: 1rem; }
   .stat-grid { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
+  .radar-grid { grid-template-columns: 1fr; }
 }

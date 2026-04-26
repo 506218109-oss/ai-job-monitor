@@ -65,7 +65,19 @@ def get_overview_stats():
     try:
         total_active = db.query(func.count(Job.id)).filter(Job.is_active == True).scalar() or 0
         total_all_time = db.query(func.count(Job.id)).scalar() or 0
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        now = datetime.utcnow()
+        today_start = datetime.combine(now.date(), datetime.min.time())
+        tomorrow_start = today_start + timedelta(days=1)
+        seven_days_ago = today_start - timedelta(days=7)
+        today_new = db.query(func.count(Job.id)).filter(
+            Job.first_seen_at >= today_start,
+            Job.first_seen_at < tomorrow_start,
+        ).scalar() or 0
+        removed_today = db.query(func.count(Job.id)).filter(
+            Job.is_active == False,
+            Job.last_seen_at >= today_start,
+            Job.last_seen_at < tomorrow_start,
+        ).scalar() or 0
         new_7days = db.query(func.count(Job.id)).filter(
             Job.first_seen_at >= seven_days_ago
         ).scalar() or 0
@@ -92,6 +104,8 @@ def get_overview_stats():
         return {
             "total_active": total_active,
             "total_all_time": total_all_time,
+            "today_new": today_new,
+            "removed_today": removed_today,
             "new_last_7_days": new_7days,
             "companies_tracked": companies_count,
             "avg_salary_min": round(avg_sal[0], 1) if avg_sal and avg_sal[0] else 0,
