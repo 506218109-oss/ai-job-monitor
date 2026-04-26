@@ -96,6 +96,22 @@ class JobSnapshot(Base):
     created_at = Column(DateTime)
 
 
+class JobEvent(Base):
+    __tablename__ = "job_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String(32), nullable=False)
+    event_date = Column(Date, nullable=False)
+    event_at = Column(DateTime, nullable=False)
+    platform = Column(String(32))
+    company_name = Column(String(256))
+    title = Column(String(256))
+    job_type = Column(String(32))
+    location_city = Column(String(32))
+    field_changes = Column(Text)
+
+
 class ScrapeRun(Base):
     __tablename__ = "scrape_runs"
 

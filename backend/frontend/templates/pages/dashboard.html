@@ -67,6 +67,21 @@
   </div>
 </div>
 
+<div class="grid-2" style="margin-bottom: 2rem;">
+  <div class="card">
+    <div class="section-title">7/30 天岗位事件趋势</div>
+    <div id="event-trends" hx-get="/api/analytics/insights" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title">行业/KOL 信息源覆盖</div>
+    <div id="source-coverage" hx-get="/api/analytics/insights" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+  </div>
+</div>
+
 {% if stats.top_skills %}
 <div class="card" style="margin-bottom: 2rem;">
   <div class="section-title">高频能力关键词 Top 15</div>
@@ -141,6 +156,12 @@
     if (evt.detail.target.id === 'career-advice') {
       renderCareerAdvice(JSON.parse(evt.detail.xhr.responseText));
     }
+    if (evt.detail.target.id === 'event-trends') {
+      renderEventTrends(JSON.parse(evt.detail.xhr.responseText));
+    }
+    if (evt.detail.target.id === 'source-coverage') {
+      renderSourceCoverage(JSON.parse(evt.detail.xhr.responseText));
+    }
   });
 })();
 
@@ -161,6 +182,11 @@ function renderDailyRadar(data) {
   });
   html += '</div>';
   html += '<p class="data-note">' + escapeHtml(data.data_note || '') + '</p>';
+  if (data.trend_policy) {
+    html += '<p class="data-note">趋势口径：近 ' + data.trend_policy.periods.join(' / ') + ' 天；' +
+      escapeHtml(data.trend_policy.removed_definition) + '；记录岗位更新：' +
+      (data.trend_policy.track_updates ? '是' : '否') + '。</p>';
+  }
   html += '</div>';
   document.getElementById('daily-radar').innerHTML = html;
 }
@@ -190,6 +216,13 @@ function renderMarketSignals(data) {
     html += '<div class="signal-head"><span>' + escapeHtml(signal.topic) + '</span><small>' + escapeHtml(signal.source_type) + '</small></div>';
     html += '<p>' + escapeHtml(signal.viewpoint) + '</p>';
     html += matched ? '<div class="tag-row">' + matched + '</div>' : '<div class="muted-small">当前 JD 信号较弱，继续观察。</div>';
+    if (signal.source_refs && signal.source_refs.length) {
+      html += '<div class="source-row">';
+      signal.source_refs.forEach(source => {
+        html += '<span>' + escapeHtml(source.name) + '</span>';
+      });
+      html += '</div>';
+    }
     html += '<div class="advice-line">' + escapeHtml(signal.advice) + '</div>';
     html += '</div>';
   });
@@ -210,6 +243,52 @@ function renderCareerAdvice(data) {
   });
   html += '</div>';
   document.getElementById('career-advice').innerHTML = html;
+}
+
+function renderEventTrends(data) {
+  const windows = data.event_trends && data.event_trends.windows;
+  if (!windows) return;
+  let html = '<div class="trend-window-grid">';
+  ['7', '30'].forEach(key => {
+    const item = windows[key];
+    if (!item) return;
+    html += '<div class="trend-window">';
+    html += '<div class="radar-label">近 ' + item.days + ' 天</div>';
+    html += '<div class="trend-metrics">';
+    html += '<span><strong>' + item.new + '</strong> 新增</span>';
+    html += '<span><strong>' + item.updated + '</strong> 更新</span>';
+    html += '<span><strong>' + item.removed + '</strong> 下线</span>';
+    html += '</div>';
+    if (item.by_company && item.by_company.length) {
+      html += '<div class="muted-small">公司变化：' + item.by_company.slice(0, 2).map(c =>
+        escapeHtml(c.company) + ' +' + c.new + ' / 更新 ' + c.updated + ' / 下线 ' + c.removed
+      ).join('；') + '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('event-trends').innerHTML = html;
+}
+
+function renderSourceCoverage(data) {
+  const sources = data.market_sources || [];
+  if (!sources.length) return;
+  const zh = sources.filter(s => s.language === '中文').length;
+  const en = sources.filter(s => s.language === '英文').length;
+  let html = '<div class="source-summary">';
+  html += '<div><strong>' + sources.length + '</strong><span>信息源</span></div>';
+  html += '<div><strong>' + zh + '</strong><span>中文</span></div>';
+  html += '<div><strong>' + en + '</strong><span>英文</span></div>';
+  html += '</div>';
+  html += '<div class="source-list">';
+  sources.forEach(source => {
+    html += '<div class="source-chip">';
+    html += '<span>' + escapeHtml(source.name) + '</span>';
+    html += '<small>' + escapeHtml(source.type) + ' · ' + escapeHtml(source.language) + '</small>';
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('source-coverage').innerHTML = html;
 }
 
 function escapeHtml(text) {

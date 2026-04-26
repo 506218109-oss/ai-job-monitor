@@ -1,12 +1,13 @@
 import json
 import asyncio
 from datetime import datetime, date, timedelta
+from typing import Any, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Job, Company, ScrapeRun
+from app.models import Job, Company, ScrapeRun, JobEvent
 from app.scrapers.boss import BossScraper
 from app.scrapers.liepin import LiepinScraper
 from app.scrapers.tencent import TencentScraper
@@ -92,7 +93,7 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
                             continue
                         seen_job_ids.add(job_key)
 
-                        found, new = upsert_job(db, job_data)
+                        found, new, changed = upsert_job(db, job_data)
                         total_found += found
                         if new:
                             total_new += 1
@@ -106,6 +107,8 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
                                     print(f"  [Scrape] Detail error: {e}")
                         else:
                             total_updated += 1
+                            if changed:
+                                print(f"  [Scrape] Updated: {job_data.title}")
 
                     if new_in_batch:
                         print(f"  [Scrape] '{keyword}' @ {display_city}: {new_in_batch} new")
@@ -153,6 +156,7 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
 
         # Update company stats
         try:
+            mark_inactive_jobs(db, days=2)
             update_company_stats(db)
             db.commit()
         except Exception as e:
@@ -194,16 +198,17 @@ def is_ai_related(title: str, desc: str = "") -> bool:
     return any(kw.lower() in text for kw in AI_REQUIRED_KEYWORDS)
 
 
-def upsert_job(db: Session, job_data: JobData) -> tuple:
+def upsert_job(db: Session, job_data: JobData) -> tuple[int, bool, bool]:
     """
-    Insert or update a job record. Returns (1, True) for new, (1, False) for update.
+    Insert or update a job record.
+    Returns (found_count, is_new_or_reactivated, has_field_changes).
     """
     if not job_data.platform_job_id or not job_data.title:
-        return (0, False)
+        return (0, False, False)
 
     # Skip non-AI jobs
     if not is_ai_related(job_data.title, job_data.description_text or ""):
-        return (0, False)
+        return (0, False, False)
 
     existing = db.query(Job).filter(
         Job.platform == job_data.platform,
@@ -212,8 +217,17 @@ def upsert_job(db: Session, job_data: JobData) -> tuple:
 
     if existing:
         if existing.is_active:
+            changes = _detect_job_changes(existing, job_data)
             existing.last_seen_at = datetime.utcnow()
             # Update fields that might change
+            if job_data.title:
+                existing.title = job_data.title
+            if job_data.company_name:
+                existing.company_name = job_data.company_name
+            if job_data.location_city:
+                existing.location_city = job_data.location_city
+            if job_data.location_district:
+                existing.location_district = job_data.location_district
             if job_data.salary_min is not None:
                 existing.salary_min = job_data.salary_min
             if job_data.salary_max is not None:
@@ -221,13 +235,19 @@ def upsert_job(db: Session, job_data: JobData) -> tuple:
             if job_data.description_text:
                 existing.description_text = job_data.description_text
             existing.job_type = job_data.job_type or existing.job_type
+            existing.job_subtype = job_data.job_subtype or existing.job_subtype
+            existing.experience_required = job_data.experience_required or existing.experience_required
+            existing.education_required = job_data.education_required or existing.education_required
+            if changes:
+                _record_job_event(db, existing, "updated", changes)
             db.flush()
-            return (1, False)
+            return (1, False, bool(changes))
         else:
             existing.is_active = True
             existing.last_seen_at = datetime.utcnow()
+            _record_job_event(db, existing, "reactivated", {"is_active": {"old": False, "new": True}})
             db.flush()
-            return (1, True)
+            return (1, True, True)
     else:
         new_job = Job(
             platform=job_data.platform,
@@ -255,7 +275,9 @@ def upsert_job(db: Session, job_data: JobData) -> tuple:
         )
         db.add(new_job)
         db.commit()
-        return (1, True)
+        _record_job_event(db, new_job, "new", {})
+        db.commit()
+        return (1, True, True)
 
 
 def _update_job_detail(db: Session, job_data: JobData):
@@ -266,6 +288,7 @@ def _update_job_detail(db: Session, job_data: JobData):
     ).first()
     if not job:
         return
+    changes = _detect_job_changes(job, job_data)
     if job_data.description_text:
         job.description_text = job_data.description_text
     if job_data.education_required:
@@ -278,6 +301,8 @@ def _update_job_detail(db: Session, job_data: JobData):
         job.job_subtype = job_data.job_subtype
     if job_data.raw_json:
         job.raw_json = job_data.raw_json
+    if changes:
+        _record_job_event(db, job, "updated", changes)
     db.flush()
 
 
@@ -332,11 +357,78 @@ def update_company_stats(db: Session):
     db.commit()
 
 
-def mark_inactive_jobs(db: Session, days: int = 14):
+def mark_inactive_jobs(db: Session, days: int = 2):
     """Mark jobs as inactive if not seen for N days."""
     cutoff = datetime.utcnow() - timedelta(days=days)
-    db.query(Job).filter(
+    stale_jobs = db.query(Job).filter(
         Job.is_active == True,
         Job.last_seen_at < cutoff,
-    ).update({"is_active": False})
+    ).all()
+    for job in stale_jobs:
+        job.is_active = False
+        _record_job_event(db, job, "removed", {
+            "last_seen_at": {
+                "old": job.last_seen_at.isoformat() if job.last_seen_at else None,
+                "new": f"not seen for {days} days",
+            }
+        })
     db.commit()
+
+
+def _detect_job_changes(job: Job, job_data: JobData) -> dict[str, dict[str, Any]]:
+    fields = {
+        "title": job_data.title,
+        "company_name": job_data.company_name,
+        "location_city": job_data.location_city,
+        "location_district": job_data.location_district,
+        "salary_min": job_data.salary_min,
+        "salary_max": job_data.salary_max,
+        "job_type": job_data.job_type,
+        "job_subtype": job_data.job_subtype,
+        "experience_required": job_data.experience_required,
+        "education_required": job_data.education_required,
+        "description_text": job_data.description_text,
+    }
+    changes = {}
+    for field, new_value in fields.items():
+        if new_value is None or new_value == "":
+            continue
+        old_value = getattr(job, field)
+        if field == "description_text":
+            if _normalize_text(old_value) != _normalize_text(new_value):
+                changes[field] = {
+                    "old": _short_text(old_value),
+                    "new": _short_text(new_value),
+                }
+        elif old_value != new_value:
+            changes[field] = {"old": old_value, "new": new_value}
+    return changes
+
+
+def _record_job_event(db: Session, job: Job, event_type: str, changes: dict[str, Any]):
+    JobEvent.__table__.create(bind=db.get_bind(), checkfirst=True)
+    now = datetime.utcnow()
+    event = JobEvent(
+        job_id=job.id,
+        event_type=event_type,
+        event_date=now.date(),
+        event_at=now,
+        platform=job.platform,
+        company_name=job.company_name,
+        title=job.title,
+        job_type=job.job_type,
+        location_city=job.location_city,
+        field_changes=json.dumps(changes, ensure_ascii=False) if changes else None,
+    )
+    db.add(event)
+
+
+def _normalize_text(value: Optional[str]) -> str:
+    return " ".join((value or "").split())
+
+
+def _short_text(value: Optional[str], limit: int = 240) -> str:
+    text = _normalize_text(value)
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."

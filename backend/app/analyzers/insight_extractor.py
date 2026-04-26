@@ -3,7 +3,8 @@ from datetime import datetime, date, time, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Job, JobSkill, Skill, JobSnapshot
+from app.models import Job, JobSkill, Skill, JobSnapshot, JobEvent
+from app.services.market_signal_service import get_market_sources, get_sources_for_topics
 
 # Key AI concepts to track in job descriptions
 AI_CONCEPTS = {
@@ -31,24 +32,28 @@ INDUSTRY_SIGNALS = [
     {
         "topic": "Agent/RAG 产品化",
         "concepts": ["Agent/智能体", "RAG/检索增强"],
+        "source_topics": ["Agent", "RAG"],
         "viewpoint": "行业和 KOL 讨论正在从通用聊天转向可执行任务、企业知识库和工具调用，岗位会更偏场景拆解、流程设计和效果评估。",
         "advice": "准备一个 RAG 或 Agent 项目案例，讲清楚知识来源、流程编排、失败处理和评估指标。",
     },
     {
         "topic": "AI 产品评测与安全",
         "concepts": ["模型评估"],
+        "source_topics": ["AI产品经理", "AI运营"],
         "viewpoint": "大模型应用进入落地阶段后，企业更关注可控性、稳定性、内容安全和效果验证，这会推高评测、合规和反馈闭环要求。",
         "advice": "简历里补充模型输出评估、A/B 实验、人工反馈闭环或安全审核相关经历。",
     },
     {
         "topic": "多模态与内容生产",
         "concepts": ["多模态"],
+        "source_topics": ["多模态", "AI运营"],
         "viewpoint": "AI 视频、图像、语音和内容生成仍是应用创新高频方向，内容平台与 C 端产品会持续需要懂场景和用户体验的人。",
         "advice": "如果目标是产品/运营岗位，可以准备一个多模态场景分析，说明用户需求、生成质量和商业化路径。",
     },
     {
         "topic": "AI 商业化与增长",
         "concepts": ["商业化"],
+        "source_topics": ["商业化", "AI产品经理"],
         "viewpoint": "招聘从“会不会 AI”逐步转向“能否把 AI 做成业务结果”，商业化、ROI、行业方案和增长指标会变得更重要。",
         "advice": "把过往项目包装成业务结果：效率提升、转化率、留存、收入或成本下降，而不只是功能描述。",
     },
@@ -168,6 +173,9 @@ def extract_recruitment_insights(db: Session) -> dict:
         Job.last_seen_at >= today_start,
         Job.last_seen_at < tomorrow_start,
     ).scalar() or 0
+    event_trends = _build_event_trends(db, today)
+    if event_trends["today"]["removed"]:
+        removed_today = event_trends["today"]["removed"]
 
     # 7. City distribution
     city_counts = Counter(j.location_city for j in active_jobs if j.location_city)
@@ -196,6 +204,7 @@ def extract_recruitment_insights(db: Session) -> dict:
     }
 
     skill_groups = _group_skills_by_category(top_skills)
+    market_sources = get_market_sources()
     market_signals = _build_market_signals(concept_pcts)
     career_advice = _build_career_advice(type_counts, concept_pcts, top_skills)
     evidence_examples = {
@@ -228,10 +237,17 @@ def extract_recruitment_insights(db: Session) -> dict:
         "city_distribution": [{"city": c, "count": n} for c, n in cities_top],
         "company_distribution": companies_top,
         "market_signals": market_signals,
+        "market_sources": market_sources,
+        "event_trends": event_trends,
         "career_advice": career_advice,
         "evidence_examples": evidence_examples,
         "daily_radar": daily_radar,
         "positioning": "每日追踪腾讯、字节 AI 非研发岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点输出求职准备建议。",
+        "trend_policy": {
+            "periods": [7, 30],
+            "removed_definition": "连续 2 天未抓到同一岗位即标记为下线",
+            "track_updates": True,
+        },
         "data_note": "当前样本聚焦腾讯与字节跳动，跨公司对比应同时参考公司招聘入口、抓取关键词和样本占比。",
         "trend": trend,
         "summary_text": summary_text,
@@ -310,11 +326,22 @@ def _build_market_signals(concept_pcts):
             for concept in item["concepts"]
             if concept in concept_pcts
         ]
+        source_refs = get_sources_for_topics(item.get("source_topics", []))[:5]
         signals.append({
             "topic": item["topic"],
             "source_type": "行业/KOL观点",
             "viewpoint": item["viewpoint"],
             "job_signal": matched,
+            "source_topics": item.get("source_topics", []),
+            "source_refs": [
+                {
+                    "name": source["name"],
+                    "type": source["type"],
+                    "language": source["language"],
+                    "url": source["url"],
+                }
+                for source in source_refs
+            ],
             "advice": item["advice"],
         })
     return signals
@@ -395,6 +422,71 @@ def _build_daily_radar(total, trend, type_pcts, concept_pcts, cities, companies)
             "detail": f"{top_company['count']} 个岗位来自该公司，占样本 {top_company['pct']}%。" if top_company else "暂无公司数据。",
         },
     ]
+
+
+def _build_event_trends(db: Session, today: date):
+    JobEvent.__table__.create(bind=db.get_bind(), checkfirst=True)
+    windows = {}
+    for days in [7, 30]:
+        start = today - timedelta(days=days - 1)
+        rows = db.query(
+            JobEvent.event_type,
+            func.count(JobEvent.id),
+        ).filter(
+            JobEvent.event_date >= start,
+            JobEvent.event_date <= today,
+        ).group_by(JobEvent.event_type).all()
+        counts = _normalize_event_counts(rows)
+
+        by_company_rows = db.query(
+            JobEvent.company_name,
+            JobEvent.event_type,
+            func.count(JobEvent.id),
+        ).filter(
+            JobEvent.event_date >= start,
+            JobEvent.event_date <= today,
+        ).group_by(JobEvent.company_name, JobEvent.event_type).all()
+        by_company = {}
+        for company, event_type, count in by_company_rows:
+            if not company:
+                continue
+            by_company.setdefault(company, {"new": 0, "updated": 0, "removed": 0, "reactivated": 0})
+            key = _event_count_key(event_type)
+            by_company[company][key] += count
+
+        windows[str(days)] = {
+            "days": days,
+            "start_date": start.isoformat(),
+            "end_date": today.isoformat(),
+            **counts,
+            "by_company": [
+                {"company": company, **values}
+                for company, values in sorted(by_company.items(), key=lambda item: item[1]["new"], reverse=True)
+            ],
+        }
+
+    today_rows = db.query(
+        JobEvent.event_type,
+        func.count(JobEvent.id),
+    ).filter(JobEvent.event_date == today).group_by(JobEvent.event_type).all()
+
+    return {
+        "today": _normalize_event_counts(today_rows),
+        "windows": windows,
+    }
+
+
+def _normalize_event_counts(rows):
+    counts = {"new": 0, "updated": 0, "removed": 0, "reactivated": 0}
+    for event_type, count in rows:
+        counts[_event_count_key(event_type)] += count
+    return counts
+
+
+def _event_count_key(event_type):
+    if event_type in {"new", "updated", "removed", "reactivated"}:
+        return event_type
+    return "updated"
 
 
 def _build_evidence_example(job, keywords):

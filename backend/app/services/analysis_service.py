@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Job, JobSnapshot, Skill, JobSkill, Company
+from app.models import Job, JobSnapshot, Skill, JobSkill, Company, JobEvent
 
 
 def generate_snapshot():
@@ -26,15 +26,15 @@ def generate_snapshot():
         existing.total_all_time = db.query(func.count(Job.id)).scalar() or 0
 
         # New today
-        existing.new_today = db.query(func.count(Job.id)).filter(
-            func.date(Job.first_seen_at) == today
+        existing.new_today = db.query(func.count(JobEvent.id)).filter(
+            JobEvent.event_date == today,
+            JobEvent.event_type.in_(["new", "reactivated"]),
         ).scalar() or 0
 
-        # Removed today (was active yesterday, inactive today)
-        yesterday = today - timedelta(days=1)
-        existing.removed_today = db.query(func.count(Job.id)).filter(
-            Job.is_active == False,
-            func.date(Job.last_seen_at) == yesterday,
+        # Removed today uses job_events. A job is marked removed after 2 days unseen.
+        existing.removed_today = db.query(func.count(JobEvent.id)).filter(
+            JobEvent.event_date == today,
+            JobEvent.event_type == "removed",
         ).scalar() or 0
 
         # Jobs by type

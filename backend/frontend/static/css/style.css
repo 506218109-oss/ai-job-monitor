@@ -359,6 +359,90 @@ tr:hover td { background: #fafaf9; }
   line-height: 1.6;
   margin-top: 0.55rem;
 }
+.source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+.source-row span,
+.source-chip {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: #fafaf9;
+  color: var(--c-text-secondary);
+  font-size: 0.78rem;
+  padding: 0.24rem 0.5rem;
+}
+.trend-window-grid,
+.event-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.trend-window,
+.event-card {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: #fff;
+}
+.trend-metrics,
+.event-metrics,
+.source-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin: 0.7rem 0;
+}
+.event-metrics {
+  grid-template-columns: repeat(4, 1fr);
+}
+.trend-metrics span,
+.event-metrics span,
+.source-summary div {
+  background: #fafaf9;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 0.65rem;
+  color: var(--c-text-secondary);
+  font-size: 0.78rem;
+}
+.trend-metrics strong,
+.event-metrics strong,
+.source-summary strong {
+  display: block;
+  color: var(--c-text);
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+.event-metrics small,
+.source-summary span {
+  display: block;
+  margin-top: 0.18rem;
+}
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.source-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  color: var(--c-text);
+}
+.source-chip small {
+  color: var(--c-text-secondary);
+}
+.mini-table {
+  margin-top: 0.85rem;
+  font-size: 0.82rem;
+}
+.mini-table th,
+.mini-table td {
+  padding: 0.45rem 0.55rem;
+}
 .tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -527,6 +611,7 @@ tr:hover td { background: #fafaf9; }
   .grid-3 { grid-template-columns: 1fr 1fr; }
   .radar-grid { grid-template-columns: repeat(2, 1fr); }
   .ability-grid { grid-template-columns: 1fr; }
+  .trend-window-grid, .event-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .sidebar { display: none; }
@@ -534,4 +619,5 @@ tr:hover td { background: #fafaf9; }
   .stat-grid { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
   .radar-grid { grid-template-columns: 1fr; }
+  .trend-metrics, .event-metrics, .source-summary { grid-template-columns: 1fr 1fr; }
 }

@@ -172,6 +172,16 @@ def get_recruitment_insights(db: Session = Depends(get_db)):
     return extract_recruitment_insights(db)
 
 
+@router.get("/analytics/market-sources")
+def get_market_sources():
+    from app.services.market_signal_service import get_market_sources
+    return {
+        "sources": get_market_sources(),
+        "topics": ["Agent", "RAG", "AI产品经理", "AI运营", "多模态", "AI搜索", "AI办公", "商业化"],
+        "language_scope": "中文 + 英文",
+    }
+
+
 @router.get("/analytics/export/csv")
 def export_csv(db: Session = Depends(get_db)):
     jobs = db.query(Job).filter(Job.is_active == True).order_by(Job.posting_date.desc().nullslast()).all()

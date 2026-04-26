@@ -54,6 +54,10 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
       <div class="section-title">能力分层与求职解释</div>
       <div id="skill-groups"><p style="color:var(--c-text-secondary);">加载中…</p></div>
     </div>
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="section-title">7/30 天新增、更新、下线趋势</div>
+      <div id="event-trends-detail"><p style="color:var(--c-text-secondary);">加载中…</p></div>
+    </div>
     <div class="grid-2" style="margin-bottom:1.5rem;">
       <div class="card">
         <div class="section-title">趋势证据样例</div>
@@ -125,6 +129,7 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     .then(insights => {
       renderCityChart(insights.city_distribution || [], colors);
       renderSkillGroups(insights.skill_groups || []);
+      renderEventTrendsDetail(insights.event_trends || {});
       renderEvidence(insights.evidence_examples || {});
       renderRoleAdvice(insights.career_advice || []);
     });
@@ -163,6 +168,33 @@ function renderSkillGroups(groups) {
   });
   html += '</div>';
   document.getElementById('skill-groups').innerHTML = html;
+}
+
+function renderEventTrendsDetail(trends) {
+  const windows = trends.windows || {};
+  let html = '<div class="event-grid">';
+  ['7', '30'].forEach(key => {
+    const item = windows[key];
+    if (!item) return;
+    html += '<div class="event-card">';
+    html += '<h4>近 ' + item.days + ' 天</h4>';
+    html += '<div class="event-metrics">';
+    html += '<span><strong>' + item.new + '</strong><small>新增</small></span>';
+    html += '<span><strong>' + item.updated + '</strong><small>更新</small></span>';
+    html += '<span><strong>' + item.removed + '</strong><small>下线</small></span>';
+    html += '<span><strong>' + item.reactivated + '</strong><small>重新上线</small></span>';
+    html += '</div>';
+    if (item.by_company && item.by_company.length) {
+      html += '<table class="mini-table"><thead><tr><th>公司</th><th>新增</th><th>更新</th><th>下线</th></tr></thead><tbody>';
+      item.by_company.slice(0, 4).forEach(company => {
+        html += '<tr><td>' + escapeHtml(company.company) + '</td><td>' + company.new + '</td><td>' + company.updated + '</td><td>' + company.removed + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('event-trends-detail').innerHTML = html;
 }
 
 function renderEvidence(examples) {
