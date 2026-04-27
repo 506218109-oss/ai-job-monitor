@@ -15,7 +15,7 @@ class JobBase(BaseModel):
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
     salary_months: Optional[int] = 12
-    job_type: str = "其他"
+    job_type: str = "未识别"
     job_subtype: Optional[str] = None
     experience_required: Optional[str] = None
     education_required: Optional[str] = None

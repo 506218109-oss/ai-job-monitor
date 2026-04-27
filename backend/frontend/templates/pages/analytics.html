@@ -239,7 +239,7 @@ function escapeHtml(text) {
 
 function highlightText(text) {
   let html = escapeHtml(text);
-  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|训练\/标注|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
+  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|市场\/品牌|销售\/客户成功|职能\/支持|解决方案\/交付|策略\/分析|训练\/标注\/评测|训练\/标注|技术研发|未识别|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|市场|销售|职能|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
   html = html.replace(keywordPattern, '<mark class="text-mark">$1</mark>');
   return html.replace(/(\d+(?:\.\d+)?%?)(?=\s*(?:个|条|家|天|%|，|、|。|；|：|:|）|\)|$))/g, '<mark class="text-mark">$1</mark>');
 }

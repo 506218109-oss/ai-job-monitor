@@ -26,7 +26,7 @@
   <div class="stat-card">
     <div class="stat-value">{{ stats.companies_tracked }}</div>
     <div class="stat-label">监控公司</div>
-    <div class="stat-change" style="color: var(--c-text-secondary);">第三方聚合源优先：目标 10 家</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">字节/腾讯基础上补充：目标 12 家</div>
   </div>
 </div>
 
@@ -59,10 +59,13 @@
       <p style="color: var(--c-text-secondary);">加载中…</p>
     </div>
   </div>
-  <div class="card">
+  <div class="card career-card">
     <div class="section-title">我该如何准备</div>
     <div id="career-advice" hx-get="/api/analytics/insights" hx-trigger="load from:body">
       <p style="color: var(--c-text-secondary);">加载中…</p>
+    </div>
+    <div class="maimai-hot-box" id="maimai-hot" hx-get="/api/analytics/maimai-hot" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">正在读取脉脉公开热点…</p>
     </div>
   </div>
 </div>
@@ -155,6 +158,9 @@
     }
     if (evt.detail.target.id === 'career-advice') {
       renderCareerAdvice(JSON.parse(evt.detail.xhr.responseText));
+    }
+    if (evt.detail.target.id === 'maimai-hot') {
+      renderMaimaiHot(JSON.parse(evt.detail.xhr.responseText));
     }
     if (evt.detail.target.id === 'event-trends') {
       renderEventTrends(JSON.parse(evt.detail.xhr.responseText));
@@ -270,6 +276,38 @@ function renderEventTrends(data) {
   document.getElementById('event-trends').innerHTML = html;
 }
 
+function renderMaimaiHot(data) {
+  let html = '<div class="maimai-hot-head">';
+  html += '<span>脉脉今日热点</span>';
+  html += '<small>' + escapeHtml(data.scope_label || '北京时间当日') + '</small>';
+  html += '</div>';
+
+  if (!data.topics || !data.topics.length) {
+    html += '<div class="maimai-empty">';
+    html += '<strong>' + escapeHtml(data.empty_message || '暂无公开热点摘要') + '</strong>';
+    html += '<p>' + escapeHtml(data.policy || '') + '</p>';
+    html += '</div>';
+    document.getElementById('maimai-hot').innerHTML = html;
+    return;
+  }
+
+  html += '<ul class="maimai-list">';
+  data.topics.slice(0, 8).forEach((item, index) => {
+    html += '<li>';
+    html += '<span class="maimai-rank">' + (index + 1) + '</span>';
+    html += '<div class="maimai-topic-body">';
+    html += item.url ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener">' + highlightText(item.title) + '</a>'
+                     : '<strong>' + highlightText(item.title) + '</strong>';
+    if (item.snippet) html += '<p>' + highlightText(item.snippet) + '</p>';
+    if (item.date) html += '<small>' + escapeHtml(item.date) + '</small>';
+    html += '</div>';
+    html += '</li>';
+  });
+  html += '</ul>';
+  html += '<p class="maimai-policy">' + escapeHtml(data.policy || '') + '</p>';
+  document.getElementById('maimai-hot').innerHTML = html;
+}
+
 function renderMarketBrief(data) {
   const windowLabel = data.scope_label || (data.is_fallback ? '近 7 日回退' : '北京时间当日');
   const dateLabel = data.is_fallback ? (data.start_date + ' 至 ' + data.end_date) : (data.date || '');
@@ -319,7 +357,7 @@ function escapeHtml(text) {
 
 function highlightText(text) {
   let html = escapeHtml(text);
-  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|训练\/标注|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
+  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|市场\/品牌|销售\/客户成功|职能\/支持|解决方案\/交付|策略\/分析|训练\/标注\/评测|训练\/标注|技术研发|未识别|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|市场|销售|职能|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
   html = html.replace(keywordPattern, '<mark class="text-mark">$1</mark>');
   return html.replace(/(\d+(?:\.\d+)?%?)(?=\s*(?:个|条|家|天|%|，|、|。|；|：|:|）|\)|$))/g, '<mark class="text-mark">$1</mark>');
 }

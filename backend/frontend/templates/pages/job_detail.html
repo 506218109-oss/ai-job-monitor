@@ -24,7 +24,16 @@
       const preparationHtml = buildPreparation(data);
 
       const typeClass = {
-        '产品经理':'tag-blue','AI运营':'tag-green','商业化/增长':'tag-orange','训练/标注':'tag-purple'
+        '产品经理':'tag-blue',
+        'AI运营':'tag-green',
+        '商业化/增长':'tag-orange',
+        '训练/标注':'tag-purple',
+        '训练/标注/评测':'tag-purple',
+        '市场/品牌':'tag-green',
+        '销售/客户成功':'tag-green',
+        '职能/支持':'tag-blue',
+        '解决方案/交付':'tag-blue',
+        '策略/分析':'tag-blue'
       }[data.job_type] || '';
 
       const salaryText = data.salary_min

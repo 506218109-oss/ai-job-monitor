@@ -1,3 +1,4 @@
+from collections import Counter
 from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -5,6 +6,8 @@ from datetime import date, datetime, time, timedelta
 
 from app.database import get_db
 from app.models import Job, JobSnapshot, JobSkill, Skill, Company
+from app.analyzers.job_classifier import normalize_job_type
+from app.target_companies import TARGET_COMPANY_NAMES
 
 router = APIRouter()
 
@@ -29,7 +32,7 @@ def get_overview(db: Session = Depends(get_db)):
     new_7days = db.query(func.count(Job.id)).filter(
         Job.first_seen_at >= seven_days_ago
     ).scalar() or 0
-    companies_count = db.query(func.count(Company.id)).scalar() or 0
+    companies_count = len(TARGET_COMPANY_NAMES)
 
     avg_sal = db.query(
         func.avg(Job.salary_min), func.avg(Job.salary_max)
@@ -38,6 +41,9 @@ def get_overview(db: Session = Depends(get_db)):
     type_counts = db.query(
         Job.job_type, func.count(Job.id)
     ).filter(Job.is_active == True).group_by(Job.job_type).order_by(func.count(Job.id).desc()).all()
+    type_counter = Counter()
+    for job_type, count in type_counts:
+        type_counter[normalize_job_type(job_type)] += count
 
     company_counts = db.query(
         Job.company_name, func.count(Job.id)
@@ -58,7 +64,7 @@ def get_overview(db: Session = Depends(get_db)):
         "companies_tracked": companies_count,
         "avg_salary_min": round(avg_sal[0], 1) if avg_sal and avg_sal[0] else 0,
         "avg_salary_max": round(avg_sal[1], 1) if avg_sal and avg_sal[1] else 0,
-        "top_types": [{"type": t, "count": c} for t, c in type_counts],
+        "top_types": [{"type": t, "count": c} for t, c in type_counter.most_common()],
         "top_companies": [{"name": n, "count": c} for n, c in company_counts],
         "top_skills": [{"name": n, "name_cn": nc, "category": cat, "count": cnt} for n, nc, cat, cnt in skill_counts if cnt > 0],
     }
@@ -87,14 +93,22 @@ def get_by_type(db: Session = Depends(get_db)):
         func.avg(Job.salary_max).label("avg_max"),
     ).filter(Job.is_active == True).group_by(Job.job_type).order_by(desc("cnt")).all()
 
+    grouped = {}
+    for job_type, cnt, avg_min, avg_max in rows:
+        normalized = normalize_job_type(job_type)
+        item = grouped.setdefault(normalized, {"count": 0, "min_sum": 0, "max_sum": 0})
+        item["count"] += cnt
+        item["min_sum"] += (avg_min or 0) * cnt
+        item["max_sum"] += (avg_max or 0) * cnt
+
     return [
         {
-            "type": r[0],
-            "count": r[1],
-            "avg_salary_min": round(r[2], 1) if r[2] else 0,
-            "avg_salary_max": round(r[3], 1) if r[3] else 0,
+            "type": job_type,
+            "count": item["count"],
+            "avg_salary_min": round(item["min_sum"] / item["count"], 1) if item["min_sum"] else 0,
+            "avg_salary_max": round(item["max_sum"] / item["count"], 1) if item["max_sum"] else 0,
         }
-        for r in rows
+        for job_type, item in sorted(grouped.items(), key=lambda kv: kv[1]["count"], reverse=True)
     ]
 
 
@@ -106,6 +120,9 @@ def get_by_company(limit: int = Query(15, le=50), db: Session = Depends(get_db))
         type_counts = db.query(
             Job.job_type, func.count(Job.id)
         ).filter(Job.company_name == c.name, Job.is_active == True).group_by(Job.job_type).all()
+        type_counter = Counter()
+        for job_type, count in type_counts:
+            type_counter[normalize_job_type(job_type)] += count
         result.append({
             "name": c.name,
             "size": c.size,
@@ -115,7 +132,7 @@ def get_by_company(limit: int = Query(15, le=50), db: Session = Depends(get_db))
             "avg_salary_max": c.avg_salary_max,
             "active_job_count": c.active_job_count,
             "total_job_count": c.total_job_count,
-            "top_types": [{"type": t, "count": cnt} for t, cnt in type_counts],
+            "top_types": [{"type": t, "count": cnt} for t, cnt in type_counter.most_common()],
         })
     return result
 
@@ -186,6 +203,12 @@ def get_market_sources():
 def get_market_brief(force_refresh: bool = False):
     from app.services.market_brief_service import get_daily_market_brief
     return get_daily_market_brief(force_refresh=force_refresh)
+
+
+@router.get("/analytics/maimai-hot")
+def get_maimai_hot(force_refresh: bool = False):
+    from app.services.maimai_hot_service import get_maimai_hot_topics
+    return get_maimai_hot_topics(force_refresh=force_refresh)
 
 
 @router.get("/analytics/export/csv")

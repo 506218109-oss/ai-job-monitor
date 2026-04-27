@@ -16,6 +16,7 @@ from app.scrapers.official_jobs import OfficialJobsScraper
 from app.scrapers.third_party_jobs import ThirdPartyJobsScraper
 from app.scrapers.base import JobData
 from app.config import settings
+from app.analyzers.job_classifier import UNRECOGNIZED_JOB_TYPE, normalize_job_type
 
 
 async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
@@ -259,7 +260,7 @@ def upsert_job(db: Session, job_data: JobData) -> tuple[int, bool, bool]:
                 existing.salary_max = job_data.salary_max
             if job_data.description_text:
                 existing.description_text = job_data.description_text
-            existing.job_type = job_data.job_type or existing.job_type
+            existing.job_type = normalize_job_type(job_data.job_type or existing.job_type)
             existing.job_subtype = job_data.job_subtype or existing.job_subtype
             existing.experience_required = job_data.experience_required or existing.experience_required
             existing.education_required = job_data.education_required or existing.education_required
@@ -270,6 +271,8 @@ def upsert_job(db: Session, job_data: JobData) -> tuple[int, bool, bool]:
         else:
             existing.is_active = True
             existing.last_seen_at = datetime.utcnow()
+            existing.job_type = normalize_job_type(job_data.job_type or existing.job_type)
+            existing.job_subtype = job_data.job_subtype or existing.job_subtype
             _record_job_event(db, existing, "reactivated", {"is_active": {"old": False, "new": True}})
             db.flush()
             return (1, True, True)
@@ -286,7 +289,7 @@ def upsert_job(db: Session, job_data: JobData) -> tuple[int, bool, bool]:
             salary_min=job_data.salary_min,
             salary_max=job_data.salary_max,
             salary_months=job_data.salary_months,
-            job_type=job_data.job_type or "其他",
+            job_type=normalize_job_type(job_data.job_type or UNRECOGNIZED_JOB_TYPE),
             job_subtype=job_data.job_subtype,
             experience_required=job_data.experience_required,
             education_required=job_data.education_required,
@@ -321,7 +324,7 @@ def _update_job_detail(db: Session, job_data: JobData):
     if job_data.benefits:
         job.benefits = job_data.benefits
     if job_data.job_type:
-        job.job_type = job_data.job_type
+        job.job_type = normalize_job_type(job_data.job_type)
     if job_data.job_subtype:
         job.job_subtype = job_data.job_subtype
     if job_data.raw_json:

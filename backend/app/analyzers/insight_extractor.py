@@ -4,7 +4,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Job, JobSkill, Skill, JobSnapshot, JobEvent
+from app.analyzers.job_classifier import normalize_job_type
 from app.services.market_signal_service import get_market_sources, get_sources_for_topics
+from app.target_companies import TARGET_COMPANY_NAMES
 
 # Key AI concepts to track in job descriptions
 AI_CONCEPTS = {
@@ -28,18 +30,7 @@ SKILL_CATEGORY_LABELS = {
     "soft": "通用协作能力",
 }
 
-TARGET_COMPANY_NAMES = [
-    "小红书",
-    "哔哩哔哩",
-    "快手",
-    "美团",
-    "阿里巴巴",
-    "京东",
-    "Meta",
-    "Google",
-    "Anthropic",
-    "Microsoft",
-]
+PRIMARY_DEMAND_EXCLUDED_TYPES = {"其他", "未识别", "技术研发"}
 
 INDUSTRY_SIGNALS = [
     {
@@ -85,8 +76,17 @@ def extract_recruitment_insights(db: Session) -> dict:
     total = len(active_jobs)
 
     # 1. Job type distribution
-    type_counts = Counter(j.job_type for j in active_jobs)
+    type_counts = Counter(normalize_job_type(j.job_type) for j in active_jobs)
     type_pcts = {k: round(v / total * 100) for k, v in type_counts.most_common()}
+    primary_type_counts = Counter({
+        job_type: count
+        for job_type, count in type_counts.items()
+        if job_type not in PRIMARY_DEMAND_EXCLUDED_TYPES
+    })
+    primary_type_pcts = {
+        k: round(v / total * 100)
+        for k, v in primary_type_counts.most_common()
+    }
 
     # 2. Experience requirements
     exp_required = Counter()
@@ -226,11 +226,11 @@ def extract_recruitment_insights(db: Session) -> dict:
         if examples and name in concept_pcts
     }
 
-    daily_radar = _build_daily_radar(total, trend, type_pcts, concept_pcts, cities_top, companies_top)
+    daily_radar = _build_daily_radar(total, trend, primary_type_pcts, concept_pcts, cities_top, companies_top)
 
     # 10. Generate daily summary text
     summary_text = _generate_summary(
-        total, type_pcts, exp_required, edu_required,
+        total, primary_type_pcts, exp_required, edu_required,
         concept_pcts, top_skills, trend, cities_top, companies_top, TARGET_COMPANY_NAMES
     )
 
@@ -241,6 +241,7 @@ def extract_recruitment_insights(db: Session) -> dict:
         "new_last_7_days": new_7days,
         "type_distribution": dict(type_counts.most_common()),
         "type_percentages": type_pcts,
+        "primary_type_percentages": primary_type_pcts,
         "experience_distribution": dict(exp_required),
         "education_distribution": dict(edu_required),
         "ai_concepts": dict(concept_freq.most_common(12)),
@@ -261,7 +262,7 @@ def extract_recruitment_insights(db: Session) -> dict:
             "removed_definition": "连续 2 天未抓到同一岗位即标记为下线",
             "track_updates": True,
         },
-        "data_note": "当前样本优先来自第三方招聘聚合源；信息源目标公司：" + "、".join(TARGET_COMPANY_NAMES) + "；跨公司对比应同时参考聚合源覆盖、抓取关键词和样本占比。",
+        "data_note": "当前样本优先来自第三方招聘聚合源；信息源目标公司：" + "、".join(TARGET_COMPANY_NAMES) + "；岗位会优先归入产品、运营、市场、销售、职能等具体方向，未识别和技术研发不参与主需求方向判断。",
         "source_companies": TARGET_COMPANY_NAMES,
         "trend": trend,
         "summary_text": summary_text,
@@ -351,9 +352,9 @@ def _build_market_signals(concept_pcts):
 
 
 def _build_career_advice(type_counts, concept_pcts, skills):
-    skill_names = {s["name"] for s in skills}
-    return [
+    items = [
         {
+            "type": "产品经理",
             "role": "AI产品经理",
             "signal": f"当前样本中产品经理岗位 {type_counts.get('产品经理', 0)} 个，是最主要的非研发 AI 机会。",
             "prepare": [
@@ -363,6 +364,7 @@ def _build_career_advice(type_counts, concept_pcts, skills):
             ],
         },
         {
+            "type": "AI运营",
             "role": "AI运营",
             "signal": f"AI运营岗位 {type_counts.get('AI运营', 0)} 个，通常连接内容、用户、模型反馈和增长。",
             "prepare": [
@@ -372,6 +374,7 @@ def _build_career_advice(type_counts, concept_pcts, skills):
             ],
         },
         {
+            "type": "商业化/增长",
             "role": "商业化/增长",
             "signal": f"商业化/增长岗位 {type_counts.get('商业化/增长', 0)} 个，更看重 AI 场景能否转化为业务结果。",
             "prepare": [
@@ -381,8 +384,59 @@ def _build_career_advice(type_counts, concept_pcts, skills):
             ],
         },
         {
+            "type": "市场/品牌",
+            "role": "市场/品牌",
+            "signal": f"市场/品牌岗位 {type_counts.get('市场/品牌', 0)} 个，重点是把 AI 能力讲成清楚的用户价值和传播主题。",
+            "prepare": [
+                "准备一个 AI 产品或功能的定位、卖点、渠道和内容节奏案例。",
+                "把技术词翻译成用户收益、场景故事和可验证的转化指标。",
+                "关注开发者关系、品牌传播、增长内容和行业案例包装。",
+            ],
+        },
+        {
+            "type": "销售/客户成功",
+            "role": "销售/客户成功",
+            "signal": f"销售/客户成功岗位 {type_counts.get('销售/客户成功', 0)} 个，更看重行业场景、客户痛点和 AI 方案落地能力。",
+            "prepare": [
+                "准备客户画像、痛点诊断、方案匹配和 ROI 说明案例。",
+                "把 AI 能力讲成效率提升、成本下降、转化提升或风险降低。",
+                "补充 PoC、续约、渠道协同或大客户推进经验。",
+            ],
+        },
+        {
+            "type": "职能/支持",
+            "role": "职能/支持",
+            "signal": f"职能/支持岗位 {type_counts.get('职能/支持', 0)} 个，说明 AI 公司也在补招聘、财务、政策、安全、物流等运营底座。",
+            "prepare": [
+                "强调对 AI 行业节奏、组织扩张和跨区域协作的理解。",
+                "用流程优化、合规意识、供应链或招聘效率等指标证明价值。",
+                "简历中说明过往职能经验如何支持 AI 业务快速落地。",
+            ],
+        },
+        {
+            "type": "解决方案/交付",
+            "role": "解决方案/交付",
+            "signal": f"解决方案/交付岗位 {type_counts.get('解决方案/交付', 0)} 个，通常连接客户需求、产品能力和上线结果。",
+            "prepare": [
+                "准备一个从需求调研、方案设计、PoC 到上线验收的案例。",
+                "突出行业 know-how、客户沟通和复杂项目推进能力。",
+                "补充 RAG、知识库、智能客服或企业流程自动化方案理解。",
+            ],
+        },
+        {
+            "type": "策略/分析",
+            "role": "策略/分析",
+            "signal": f"策略/分析岗位 {type_counts.get('策略/分析', 0)} 个，重点看市场洞察、竞争分析和数据判断能力。",
+            "prepare": [
+                "准备一份 AI 产品/公司/赛道的结构化分析样例。",
+                "突出数据来源、判断框架、业务假设和可执行建议。",
+                "把分析结论和增长、商业化、产品优先级连接起来。",
+            ],
+        },
+        {
+            "type": "训练/标注/评测",
             "role": "训练/标注/评测",
-            "signal": f"模型评估相关 JD 信号占比 {concept_pcts.get('模型评估', 0)}%，说明评测和反馈闭环正在变重要。",
+            "signal": f"训练/标注/评测岗位 {type_counts.get('训练/标注/评测', 0)} 个；模型评估相关 JD 信号占比 {concept_pcts.get('模型评估', 0)}%。",
             "prepare": [
                 "补充数据质量、标注规范、评测维度和 bad case 分析经验。",
                 "理解 SFT/RLHF/人工反馈的基本流程。",
@@ -390,6 +444,14 @@ def _build_career_advice(type_counts, concept_pcts, skills):
             ],
         },
     ]
+
+    return sorted(
+        items,
+        key=lambda item: (
+            type_counts.get(item["type"], 0) == 0,
+            -type_counts.get(item["type"], 0),
+        ),
+    )
 
 
 def _build_daily_radar(total, trend, type_pcts, concept_pcts, cities, companies):

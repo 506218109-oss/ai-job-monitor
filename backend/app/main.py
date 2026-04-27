@@ -12,6 +12,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.config import settings
 from app.database import SessionLocal
 from app.models import Job, Company, JobSnapshot, Skill, JobSkill
+from app.analyzers.job_classifier import normalize_job_type, reclassify_existing_jobs
+from app.target_companies import TARGET_COMPANY_NAMES
 from app.routers import jobs, analytics, skills, companies, scrape
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "frontend" / "templates"
@@ -38,6 +40,11 @@ def startup_init():
             for name, name_cn, category, keywords in SEED_SKILLS:
                 db.add(Skill(name=name, name_cn=name_cn, category=category, keywords=keywords))
             db.commit()
+
+        changed = reclassify_existing_jobs(db, active_only=True)
+        if changed:
+            db.commit()
+            print(f"[Startup] Reclassified {changed} active jobs with latest job type rules.")
     finally:
         db.close()
 
@@ -81,7 +88,7 @@ def get_overview_stats():
         new_7days = db.query(func.count(Job.id)).filter(
             Job.first_seen_at >= seven_days_ago
         ).scalar() or 0
-        companies_count = db.query(func.count(Company.id)).scalar() or 0
+        companies_count = len(TARGET_COMPANY_NAMES)
 
         avg_sal = db.query(
             func.avg(Job.salary_min), func.avg(Job.salary_max)
@@ -90,6 +97,10 @@ def get_overview_stats():
         type_counts = db.query(
             Job.job_type, func.count(Job.id)
         ).filter(Job.is_active == True).group_by(Job.job_type).order_by(func.count(Job.id).desc()).all()
+        type_counter = {}
+        for job_type, count in type_counts:
+            normalized = normalize_job_type(job_type)
+            type_counter[normalized] = type_counter.get(normalized, 0) + count
 
         company_counts = db.query(
             Job.company_name, func.count(Job.id)
@@ -110,7 +121,10 @@ def get_overview_stats():
             "companies_tracked": companies_count,
             "avg_salary_min": round(avg_sal[0], 1) if avg_sal and avg_sal[0] else 0,
             "avg_salary_max": round(avg_sal[1], 1) if avg_sal and avg_sal[1] else 0,
-            "top_types": [{"type": t, "count": c} for t, c in type_counts],
+            "top_types": [
+                {"type": t, "count": c}
+                for t, c in sorted(type_counter.items(), key=lambda item: item[1], reverse=True)
+            ],
             "top_companies": [{"name": n, "count": c} for n, c in company_counts],
             "top_skills": [{"name": n, "name_cn": nc, "category": cat, "count": cnt}
                            for n, nc, cat, cnt in skill_rows if cnt > 0],

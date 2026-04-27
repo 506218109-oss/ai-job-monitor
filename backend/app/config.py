@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     SERPAPI_API_KEY: str = _env("SERPAPI_API_KEY")
     ADZUNA_APP_ID: str = _env("ADZUNA_APP_ID")
     ADZUNA_APP_KEY: str = _env("ADZUNA_APP_KEY")
-    THIRD_PARTY_MAX_QUERIES_PER_RUN: int = 20
+    THIRD_PARTY_MAX_QUERIES_PER_RUN: int = 24
     THIRD_PARTY_ADZUNA_COUNTRIES: str = "us,gb,ca,au,sg"
 
     SEARCH_KEYWORDS: list[str] = [

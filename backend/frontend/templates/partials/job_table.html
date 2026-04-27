@@ -25,8 +25,12 @@
         <span class="tag tag-green">{{ job.job_type }}</span>
         {% elif job.job_type == '商业化/增长' %}
         <span class="tag tag-orange">{{ job.job_type }}</span>
-        {% elif job.job_type == '训练/标注' %}
+        {% elif job.job_type == '训练/标注/评测' or job.job_type == '训练/标注' %}
         <span class="tag tag-purple">{{ job.job_type }}</span>
+        {% elif job.job_type == '市场/品牌' or job.job_type == '销售/客户成功' %}
+        <span class="tag tag-green">{{ job.job_type }}</span>
+        {% elif job.job_type == '职能/支持' or job.job_type == '解决方案/交付' or job.job_type == '策略/分析' %}
+        <span class="tag tag-blue">{{ job.job_type }}</span>
         {% else %}
         <span class="tag">{{ job.job_type }}</span>
         {% endif %}

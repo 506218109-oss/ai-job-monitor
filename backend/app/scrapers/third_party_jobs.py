@@ -36,6 +36,8 @@ class SearchProfile:
 
 
 TARGET_COMPANIES = [
+    TargetCompany("bytedance", "字节跳动", "ByteDance", "中国", ("字节跳动", "bytedance", "tiktok", "doubao")),
+    TargetCompany("tencent", "腾讯", "Tencent", "中国", ("腾讯", "tencent", "wechat", "hunyuan")),
     TargetCompany("meta", "Meta", "Meta", "全球", ("meta", "facebook")),
     TargetCompany("google", "Google", "Google", "全球", ("google", "google deepmind", "deepmind")),
     TargetCompany("anthropic", "Anthropic", "Anthropic", "全球", ("anthropic",)),

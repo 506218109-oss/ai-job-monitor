@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models import Job, JobSnapshot, Skill, JobSkill, Company, JobEvent
+from app.analyzers.job_classifier import normalize_job_type
 
 
 def generate_snapshot():
@@ -41,7 +42,11 @@ def generate_snapshot():
         type_rows = db.query(Job.job_type, func.count(Job.id)).filter(
             Job.is_active == True
         ).group_by(Job.job_type).all()
-        existing.jobs_by_type = json.dumps({t: c for t, c in type_rows}, ensure_ascii=False)
+        jobs_by_type = {}
+        for job_type, count in type_rows:
+            normalized = normalize_job_type(job_type)
+            jobs_by_type[normalized] = jobs_by_type.get(normalized, 0) + count
+        existing.jobs_by_type = json.dumps(jobs_by_type, ensure_ascii=False)
 
         # Jobs by city
         city_rows = db.query(Job.location_city, func.count(Job.id)).filter(
@@ -52,13 +57,25 @@ def generate_snapshot():
         # Avg salary by type
         sal_rows = db.query(
             Job.job_type,
+            func.count(Job.id).label("cnt"),
             func.avg(Job.salary_min).label("avg_min"),
             func.avg(Job.salary_max).label("avg_max"),
         ).filter(Job.is_active == True, Job.salary_min.isnot(None)).group_by(Job.job_type).all()
-        existing.avg_salary_by_type = json.dumps({
-            t: {"min": round(mn, 1) if mn else 0, "max": round(mx, 1) if mx else 0}
-            for t, mn, mx in sal_rows
-        }, ensure_ascii=False)
+        salary_totals = {}
+        for job_type, cnt, avg_min, avg_max in sal_rows:
+            normalized = normalize_job_type(job_type)
+            item = salary_totals.setdefault(normalized, {"count": 0, "min_sum": 0, "max_sum": 0})
+            item["count"] += cnt
+            item["min_sum"] += (avg_min or 0) * cnt
+            item["max_sum"] += (avg_max or 0) * cnt
+        salary_by_type = {
+            job_type: {
+                "min": round(item["min_sum"] / item["count"], 1) if item["min_sum"] else 0,
+                "max": round(item["max_sum"] / item["count"], 1) if item["max_sum"] else 0,
+            }
+            for job_type, item in salary_totals.items()
+        }
+        existing.avg_salary_by_type = json.dumps(salary_by_type, ensure_ascii=False)
 
         # Top companies
         company_rows = db.query(Job.company_name, func.count(Job.id)).filter(

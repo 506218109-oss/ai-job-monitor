@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
 from app.models import Job, JobSkill, Skill
+from app.analyzers.job_classifier import LEGACY_UNRECOGNIZED_TYPES, normalize_job_type
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -37,7 +38,10 @@ def list_jobs(
     if is_active:
         q = q.filter(Job.is_active == True)
     if job_type:
-        q = q.filter(Job.job_type == job_type)
+        if normalize_job_type(job_type) == "未识别":
+            q = q.filter(Job.job_type.in_(tuple(LEGACY_UNRECOGNIZED_TYPES)))
+        else:
+            q = q.filter(Job.job_type == job_type)
     if company_name:
         q = q.filter(Job.company_name.like(f"%{company_name}%"))
     if location_city:
@@ -76,7 +80,7 @@ def list_jobs(
             "salary_min": job.salary_min,
             "salary_max": job.salary_max,
             "salary_months": job.salary_months,
-            "job_type": job.job_type,
+            "job_type": normalize_job_type(job.job_type),
             "job_subtype": job.job_subtype,
             "experience_required": job.experience_required,
             "education_required": job.education_required,
@@ -121,7 +125,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
         "salary_min": job.salary_min,
         "salary_max": job.salary_max,
         "salary_months": job.salary_months,
-        "job_type": job.job_type,
+        "job_type": normalize_job_type(job.job_type),
         "job_subtype": job.job_subtype,
         "experience_required": job.experience_required,
         "education_required": job.education_required,

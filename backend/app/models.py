@@ -22,7 +22,7 @@ class Job(Base):
     salary_min = Column(Integer)
     salary_max = Column(Integer)
     salary_months = Column(Integer, default=12)
-    job_type = Column(String(32), nullable=False, default="其他")
+    job_type = Column(String(32), nullable=False, default="未识别")
     job_subtype = Column(String(64))
     experience_required = Column(String(32))
     education_required = Column(String(32))
