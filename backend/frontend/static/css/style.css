@@ -14,6 +14,10 @@
   --c-green-bg: #f0fdf4;
   --c-orange: #ea580c;
   --c-orange-bg: #fff7ed;
+  --c-claude-orange: #c96442;
+  --c-claude-orange-dark: #9f4728;
+  --c-claude-orange-bg: #fff1e8;
+  --c-claude-orange-border: #f1c6b4;
   --c-purple: #7c3aed;
   --c-purple-bg: #f5f3ff;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
@@ -231,6 +235,16 @@ a:hover { text-decoration: underline; }
   color: var(--c-accent);
   font-weight: 700;
 }
+.text-mark {
+  display: inline;
+  padding: 0;
+  background: transparent;
+  color: var(--c-text);
+  font-weight: 800;
+}
+.text-mark-number {
+  color: inherit;
+}
 
 /* ===== Section headings ===== */
 .section-title {
@@ -272,6 +286,12 @@ tr:hover td { background: #fafaf9; }
 .tag-blue { background: var(--c-accent-light); color: var(--c-accent); }
 .tag-green { background: var(--c-green-bg); color: var(--c-green); }
 .tag-orange { background: var(--c-orange-bg); color: var(--c-orange); }
+.tag-emphasis {
+  background: #fff;
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  font-weight: 700;
+}
 .tag-purple { background: var(--c-purple-bg); color: var(--c-purple); }
 
 /* ===== Concept Bar ===== */
@@ -435,6 +455,68 @@ tr:hover td { background: #fafaf9; }
 .source-chip small {
   color: var(--c-text-secondary);
 }
+.brief-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+.brief-meta span {
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  color: var(--c-text-secondary);
+  font-size: 0.76rem;
+  padding: 0.2rem 0.45rem;
+}
+.brief-list {
+  list-style-position: inside;
+  display: grid;
+  gap: 0.85rem;
+  color: var(--c-text);
+}
+.brief-list li {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  background: #fff;
+}
+.brief-topic {
+  display: inline;
+  font-weight: 800;
+  margin-left: 0.2rem;
+}
+.brief-list p {
+  color: var(--c-text);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin-top: 0.35rem;
+}
+.brief-evidence {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+}
+.brief-evidence a,
+.brief-evidence span {
+  color: var(--c-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.empty-brief {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: #fff;
+}
+.empty-brief strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.empty-brief p {
+  color: var(--c-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
 .mini-table {
   margin-top: 0.85rem;
   font-size: 0.82rem;
@@ -484,6 +566,181 @@ tr:hover td { background: #fafaf9; }
   font-size: 0.82rem;
   line-height: 1.55;
   margin-top: 0.25rem;
+}
+
+
+/* ===== Daily Quote ===== */
+.sidebar-quote {
+  margin-top: 0.9rem;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--c-border);
+  color: var(--c-text-secondary);
+}
+.sidebar-quote-label {
+  color: var(--c-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+.sidebar-quote p {
+  color: var(--c-text);
+  font-size: 0.78rem;
+  line-height: 1.65;
+  margin-bottom: 0.35rem;
+}
+.sidebar-quote-source {
+  display: block;
+  color: var(--c-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+.sidebar-quote-source:hover {
+  color: var(--c-accent);
+}
+.daily-quote-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(250, 250, 249, 0.78);
+  backdrop-filter: blur(10px);
+}
+.daily-quote-card {
+  position: relative;
+  width: min(620px, 100%);
+  background: var(--c-surface);
+  border: 1px solid #dbe7ff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+.daily-quote-card::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: var(--c-accent);
+}
+.daily-quote-close {
+  position: absolute;
+  top: 0.95rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--c-text-secondary);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.daily-quote-close:hover {
+  color: var(--c-text);
+  background: #f5f7fb;
+  border-color: var(--c-border);
+}
+.daily-quote-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.4rem 3.5rem 0 1.45rem;
+}
+.daily-quote-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  background: #f7faff;
+  color: var(--c-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.daily-quote-date {
+  color: var(--c-text-secondary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.daily-quote-content {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  gap: 0.75rem;
+  padding: 1rem 1.45rem 0;
+}
+.daily-quote-mark {
+  color: var(--c-accent);
+  font-family: Georgia, serif;
+  font-size: 3.4rem;
+  line-height: 0.95;
+  opacity: 0.22;
+}
+.daily-quote-card blockquote {
+  color: var(--c-text);
+  font-size: 1.42rem;
+  font-weight: 700;
+  line-height: 1.58;
+  letter-spacing: 0;
+  padding-top: 0.12rem;
+}
+.daily-quote-note {
+  color: var(--c-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.75;
+  margin: 0.9rem 1.45rem 0 4.6rem;
+}
+.daily-quote-footer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.45rem 1.35rem;
+  background: #fbfcff;
+  border-top: 1px solid #edf2ff;
+}
+.daily-quote-meta {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.daily-quote-meta span {
+  color: var(--c-text-secondary);
+  font-size: 0.72rem;
+}
+.daily-quote-source {
+  display: inline-block;
+  color: var(--c-text);
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.daily-quote-source:hover {
+  color: var(--c-accent);
+}
+.daily-quote-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--c-accent);
+  border-radius: 6px;
+  background: var(--c-accent);
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.daily-quote-action:hover {
+  background: var(--c-accent-hover);
+  border-color: var(--c-accent-hover);
 }
 
 /* ===== Filters ===== */
@@ -620,4 +877,12 @@ tr:hover td { background: #fafaf9; }
   .grid-3 { grid-template-columns: 1fr; }
   .radar-grid { grid-template-columns: 1fr; }
   .trend-metrics, .event-metrics, .source-summary { grid-template-columns: 1fr 1fr; }
+  .daily-quote-overlay { padding: 1rem; }
+  .daily-quote-topline { align-items: flex-start; flex-direction: column; gap: 0.45rem; padding-right: 3.3rem; }
+  .daily-quote-content { grid-template-columns: 1.7rem 1fr; gap: 0.55rem; }
+  .daily-quote-mark { font-size: 2.7rem; }
+  .daily-quote-card blockquote { font-size: 1.28rem; line-height: 1.62; }
+  .daily-quote-note { margin-left: 3.7rem; }
+  .daily-quote-footer { align-items: stretch; flex-direction: column; }
+  .daily-quote-action { width: 100%; }
 }

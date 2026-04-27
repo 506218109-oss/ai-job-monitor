@@ -160,7 +160,7 @@ def scheduled_scrape():
     """Run the full scrape pipeline for all platforms (called by APScheduler)."""
     from app.services.scraping_service import run_scrape
     from app.config import settings
-    platforms = ["tencent", "bytedance"]
+    platforms = ["third_party"]
     for p in platforms:
         print(f"[Scheduler] Starting {p} scrape at {datetime.utcnow()}")
         try:

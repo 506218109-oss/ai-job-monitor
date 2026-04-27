@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}岗位详情 - AI求职趋势雷达{% endblock %}
+{% block title %}岗位详情 - AI招聘趋势雷达{% endblock %}
 
 {% block content %}
 <div id="job-detail"
@@ -16,7 +16,7 @@
     if (evt.detail.target.id === 'job-detail' && evt.detail.requestConfig.path.startsWith('/api/jobs/')) {
       const data = JSON.parse(evt.detail.xhr.responseText);
       if (data.error) return;
-      document.title = data.title + ' - AI求职趋势雷达';
+      document.title = data.title + ' - AI招聘趋势雷达';
 
       const skillsHtml = (data.skills || []).map(s =>
         '<span class="tag tag-blue" title="' + escapeHtml(s.category_label || '') + '">' + escapeHtml(s.name_cn || s.name) + '</span>'
@@ -62,7 +62,7 @@
             <div style="display:flex;flex-wrap:wrap;gap:6px;">${skillsHtml || '<span style="color:var(--c-text-secondary);">暂无</span>'}</div>
             ${data.company_size ? '<p style="margin-top:1rem;"><strong>公司规模：</strong>' + data.company_size + '</p>' : ''}
             ${data.company_industry ? '<p><strong>行业：</strong>' + data.company_industry + '</p>' : ''}
-            ${data.platform ? '<p style="margin-top:0.5rem;color:var(--c-text-secondary);font-size:0.82rem;">来源：' + data.platform + '</p>' : ''}
+            ${data.platform ? '<p style="margin-top:0.5rem;color:var(--c-text-secondary);font-size:0.82rem;">来源：' + escapeHtml(platformLabel(data.platform)) + '</p>' : ''}
           </div>
         </div>
 
@@ -111,6 +111,18 @@
     }
 
     return '<ul class="prep-list">' + points.map(p => '<li>' + escapeHtml(p) + '</li>').join('') + '</ul>';
+  }
+
+  function platformLabel(platform) {
+    const labels = {
+      third_party_serpapi: 'SerpApi Google Jobs',
+      third_party_adzuna: 'Adzuna',
+      tencent: '腾讯',
+      bytedance: '字节跳动',
+      official_meituan: '美团（官网）',
+      official_anthropic: 'Anthropic（官网）',
+    };
+    return labels[platform] || platform || '-';
   }
 </script>
 {% endblock %}

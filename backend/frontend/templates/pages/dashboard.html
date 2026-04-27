@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}AI求职趋势雷达 - 今日雷达{% endblock %}
+{% block title %}AI招聘趋势雷达 - 今日雷达{% endblock %}
 
 {% block content %}
 <div class="content-header">
-  <h1>AI 求职趋势雷达</h1>
-  <p>每日追踪腾讯、字节 AI 相关岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点，帮助判断 AI 产品/运营/商业化岗位的真实招聘趋势与准备重点。</p>
+  <h1>AI招聘趋势雷达</h1>
+  <p>每日优先追踪第三方招聘聚合源中的目标公司 AI 相关岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点，帮助判断 AI 产品/运营/商业化岗位的真实招聘趋势与准备重点。</p>
 </div>
 
 <div class="stat-grid" id="stats-grid">
@@ -26,20 +26,20 @@
   <div class="stat-card">
     <div class="stat-value">{{ stats.companies_tracked }}</div>
     <div class="stat-label">监控公司</div>
-    <div class="stat-change" style="color: var(--c-text-secondary);">腾讯 + 字节跳动</div>
+    <div class="stat-change" style="color: var(--c-text-secondary);">第三方聚合源优先：目标 10 家</div>
   </div>
 </div>
 
 <div id="daily-radar" hx-get="/api/analytics/insights" hx-trigger="load">
   <div class="insight-summary">
-    <h3>今日求职雷达</h3>
+    <h3>今日招聘雷达</h3>
     <p style="color: var(--c-text-secondary);">正在生成今日趋势解释…</p>
   </div>
 </div>
 
 <div class="grid-2" style="margin-bottom: 2rem;">
   <div class="card">
-    <div class="section-title">今天这两家公司在招什么</div>
+    <div class="section-title">目标公司今天在招什么</div>
     {% if stats.top_types %}
     <div class="chart-box"><canvas id="typeChart"></canvas></div>
     {% else %}
@@ -75,9 +75,9 @@
     </div>
   </div>
   <div class="card">
-    <div class="section-title">行业/KOL 信息源覆盖</div>
-    <div id="source-coverage" hx-get="/api/analytics/insights" hx-trigger="load from:body">
-      <p style="color: var(--c-text-secondary);">加载中…</p>
+    <div class="section-title">今日 AI 行业内参</div>
+    <div id="market-brief" hx-get="/api/analytics/market-brief" hx-trigger="load from:body">
+      <p style="color: var(--c-text-secondary);">正在读取今日公开内容…</p>
     </div>
   </div>
 </div>
@@ -159,33 +159,33 @@
     if (evt.detail.target.id === 'event-trends') {
       renderEventTrends(JSON.parse(evt.detail.xhr.responseText));
     }
-    if (evt.detail.target.id === 'source-coverage') {
-      renderSourceCoverage(JSON.parse(evt.detail.xhr.responseText));
+    if (evt.detail.target.id === 'market-brief') {
+      renderMarketBrief(JSON.parse(evt.detail.xhr.responseText));
     }
   });
 })();
 
 function renderDailyRadar(data) {
   if (!data.daily_radar) return;
-  let html = '<div class="insight-summary"><h3>今日求职雷达</h3>';
-  html += '<p class="insight-lead">' + escapeHtml(data.positioning || '') + '</p>';
+  let html = '<div class="insight-summary"><h3>今日招聘雷达</h3>';
+  html += '<p class="insight-lead">' + highlightText(data.positioning || '') + '</p>';
   html += '<div class="radar-grid">';
   data.daily_radar.forEach(item => {
     html += '<div class="radar-item"><div class="radar-label">' + escapeHtml(item.label) + '</div>';
-    html += '<div class="radar-value">' + escapeHtml(item.value) + '</div>';
-    html += '<p>' + escapeHtml(item.detail) + '</p></div>';
+    html += '<div class="radar-value">' + highlightText(item.value) + '</div>';
+    html += '<p>' + highlightText(item.detail) + '</p></div>';
   });
   html += '</div>';
   html += '<div class="insight-lines">';
   (data.summary_text || []).forEach(line => {
-    html += '<div class="insight-item">' + escapeHtml(line) + '</div>';
+    html += '<div class="insight-item">' + highlightText(line) + '</div>';
   });
   html += '</div>';
-  html += '<p class="data-note">' + escapeHtml(data.data_note || '') + '</p>';
+  html += '<p class="data-note">' + highlightText(data.data_note || '') + '</p>';
   if (data.trend_policy) {
-    html += '<p class="data-note">趋势口径：近 ' + data.trend_policy.periods.join(' / ') + ' 天；' +
-      escapeHtml(data.trend_policy.removed_definition) + '；记录岗位更新：' +
-      (data.trend_policy.track_updates ? '是' : '否') + '。</p>';
+    html += '<p class="data-note">' + highlightText('趋势口径：近 ' + data.trend_policy.periods.join(' / ') + ' 天；' +
+      data.trend_policy.removed_definition + '；记录岗位更新：' +
+      (data.trend_policy.track_updates ? '是' : '否') + '。') + '</p>';
   }
   html += '</div>';
   document.getElementById('daily-radar').innerHTML = html;
@@ -197,7 +197,7 @@ function renderConceptBars(data) {
   let html = '<div class="concept-list">';
   for (const [name, pct] of Object.entries(concepts)) {
     html += '<div class="concept-bar">';
-    html += '<div class="concept-bar-label">' + name + '</div>';
+    html += '<div class="concept-bar-label">' + highlightText(name) + '</div>';
     html += '<div class="concept-bar-track"><div class="concept-bar-fill" style="width:' + pct + '%"></div></div>';
     html += '<div class="concept-bar-pct">' + pct + '%</div>';
     html += '</div>';
@@ -211,10 +211,10 @@ function renderMarketSignals(data) {
   let html = '<div class="signal-list">';
   data.market_signals.forEach(signal => {
     const matched = (signal.job_signal || []).filter(s => s.pct > 0)
-      .map(s => '<span class="tag tag-blue">' + escapeHtml(s.name) + ' ' + s.pct + '%</span>').join(' ');
+      .map(s => '<span class="tag tag-emphasis">' + highlightText(s.name + ' ' + s.pct + '%') + '</span>').join(' ');
     html += '<div class="signal-item">';
-    html += '<div class="signal-head"><span>' + escapeHtml(signal.topic) + '</span><small>' + escapeHtml(signal.source_type) + '</small></div>';
-    html += '<p>' + escapeHtml(signal.viewpoint) + '</p>';
+    html += '<div class="signal-head"><span>' + highlightText(signal.topic) + '</span><small>' + escapeHtml(signal.source_type) + '</small></div>';
+    html += '<p>' + highlightText(signal.viewpoint) + '</p>';
     html += matched ? '<div class="tag-row">' + matched + '</div>' : '<div class="muted-small">当前 JD 信号较弱，继续观察。</div>';
     if (signal.source_refs && signal.source_refs.length) {
       html += '<div class="source-row">';
@@ -223,7 +223,7 @@ function renderMarketSignals(data) {
       });
       html += '</div>';
     }
-    html += '<div class="advice-line">' + escapeHtml(signal.advice) + '</div>';
+    html += '<div class="advice-line">' + highlightText(signal.advice) + '</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -235,10 +235,10 @@ function renderCareerAdvice(data) {
   let html = '<div class="advice-list">';
   data.career_advice.slice(0, 3).forEach(item => {
     html += '<div class="advice-card">';
-    html += '<h4>' + escapeHtml(item.role) + '</h4>';
-    html += '<p>' + escapeHtml(item.signal) + '</p>';
+    html += '<h4>' + highlightText(item.role) + '</h4>';
+    html += '<p>' + highlightText(item.signal) + '</p>';
     html += '<ul>';
-    item.prepare.forEach(point => { html += '<li>' + escapeHtml(point) + '</li>'; });
+    item.prepare.forEach(point => { html += '<li>' + highlightText(point) + '</li>'; });
     html += '</ul></div>';
   });
   html += '</div>';
@@ -260,9 +260,9 @@ function renderEventTrends(data) {
     html += '<span><strong>' + item.removed + '</strong> 下线</span>';
     html += '</div>';
     if (item.by_company && item.by_company.length) {
-      html += '<div class="muted-small">公司变化：' + item.by_company.slice(0, 2).map(c =>
-        escapeHtml(c.company) + ' +' + c.new + ' / 更新 ' + c.updated + ' / 下线 ' + c.removed
-      ).join('；') + '</div>';
+      html += '<div class="muted-small">' + highlightText('公司变化：' + item.by_company.slice(0, 2).map(c =>
+        c.company + ' +' + c.new + ' / 更新 ' + c.updated + ' / 下线 ' + c.removed
+      ).join('；')) + '</div>';
     }
     html += '</div>';
   });
@@ -270,31 +270,58 @@ function renderEventTrends(data) {
   document.getElementById('event-trends').innerHTML = html;
 }
 
-function renderSourceCoverage(data) {
-  const sources = data.market_sources || [];
-  if (!sources.length) return;
-  const zh = sources.filter(s => s.language === '中文').length;
-  const en = sources.filter(s => s.language === '英文').length;
-  let html = '<div class="source-summary">';
-  html += '<div><strong>' + sources.length + '</strong><span>信息源</span></div>';
-  html += '<div><strong>' + zh + '</strong><span>中文</span></div>';
-  html += '<div><strong>' + en + '</strong><span>英文</span></div>';
+function renderMarketBrief(data) {
+  const windowLabel = data.scope_label || (data.is_fallback ? '近 7 日回退' : '北京时间当日');
+  const dateLabel = data.is_fallback ? (data.start_date + ' 至 ' + data.end_date) : (data.date || '');
+  let html = '<div class="brief-meta">';
+  html += '<span>' + escapeHtml(dateLabel) + '</span>';
+  html += '<span>' + escapeHtml(windowLabel) + '</span>';
+  html += '<span>检查 ' + (data.sources_checked || 0) + ' 个公开源</span>';
+  html += '<span>命中 ' + (data.items_found || 0) + ' 条内容</span>';
   html += '</div>';
-  html += '<div class="source-list">';
-  sources.forEach(source => {
-    html += '<div class="source-chip">';
-    html += '<span>' + escapeHtml(source.name) + '</span>';
-    html += '<small>' + escapeHtml(source.type) + ' · ' + escapeHtml(source.language) + '</small>';
+
+  if (!data.briefs || !data.briefs.length) {
+    html += '<div class="empty-brief">';
+    html += '<strong>今日暂无可用内参</strong>';
+    html += '<p>' + escapeHtml(data.policy || '没有当天公开内容则不生成简报。') + '</p>';
     html += '</div>';
+    document.getElementById('market-brief').innerHTML = html;
+    return;
+  }
+
+  html += '<ol class="brief-list">';
+  data.briefs.forEach(item => {
+    html += '<li>';
+    html += '<div class="brief-topic">' + highlightText(item.topic) + '</div>';
+    html += '<p>' + highlightText(item.statement) + '</p>';
+    if (item.evidence && item.evidence.length) {
+      html += '<div class="brief-evidence">';
+      item.evidence.slice(0, 3).forEach(e => {
+        const datePrefix = e.published_date ? '[' + e.published_date + '] ' : '';
+        const title = escapeHtml(datePrefix + e.source + '：' + e.title);
+        html += e.url ? '<a href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener">' + title + '</a>'
+                      : '<span>' + title + '</span>';
+      });
+      html += '</div>';
+    }
+    html += '</li>';
   });
-  html += '</div>';
-  document.getElementById('source-coverage').innerHTML = html;
+  html += '</ol>';
+  html += '<p class="data-note">' + escapeHtml(data.policy || '') + '</p>';
+  document.getElementById('market-brief').innerHTML = html;
 }
 
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text || '';
   return div.innerHTML;
+}
+
+function highlightText(text) {
+  let html = escapeHtml(text);
+  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|训练\/标注|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
+  html = html.replace(keywordPattern, '<mark class="text-mark">$1</mark>');
+  return html.replace(/(\d+(?:\.\d+)?%?)(?=\s*(?:个|条|家|天|%|，|、|。|；|：|:|）|\)|$))/g, '<mark class="text-mark">$1</mark>');
 }
 </script>
 {% endblock %}

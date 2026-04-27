@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}AI求职趋势雷达 - 能力趋势{% endblock %}
+{% block title %}AI招聘趋势雷达 - 能力趋势{% endblock %}
 
 {% block content %}
 <div class="content-header">
@@ -158,10 +158,10 @@ function renderSkillGroups(groups) {
   let html = '<div class="ability-grid">';
   groups.forEach(group => {
     html += '<div class="ability-group">';
-    html += '<h4>' + escapeHtml(group.label) + '</h4>';
+    html += '<h4>' + highlightText(group.label) + '</h4>';
     html += '<div class="tag-row">';
     group.skills.slice(0, 6).forEach(skill => {
-      html += '<span class="tag tag-blue">' + escapeHtml(skill.name) + ' ' + skill.pct + '%</span>';
+      html += '<span class="tag tag-emphasis">' + highlightText(skill.name + ' ' + skill.pct + '%') + '</span>';
     });
     html += '</div>';
     html += '</div>';
@@ -202,12 +202,12 @@ function renderEvidence(examples) {
   if (!entries.length) return;
   let html = '<div class="evidence-list">';
   entries.forEach(([concept, jobs]) => {
-    html += '<div class="evidence-block"><h4>' + escapeHtml(concept) + '</h4>';
+    html += '<div class="evidence-block"><h4>' + highlightText(concept) + '</h4>';
     jobs.slice(0, 2).forEach(job => {
       html += '<a class="evidence-link" href="/jobs/' + job.id + '">';
-      html += '<strong>' + escapeHtml(job.title) + '</strong>';
-      html += '<span>' + escapeHtml(job.company_name) + ' · ' + escapeHtml(job.location_city || '-') + ' · ' + escapeHtml(job.job_type) + '</span>';
-      if (job.snippet) html += '<p>' + escapeHtml(job.snippet) + '</p>';
+      html += '<strong>' + highlightText(job.title) + '</strong>';
+      html += '<span>' + highlightText(job.company_name + ' · ' + (job.location_city || '-') + ' · ' + job.job_type) + '</span>';
+      if (job.snippet) html += '<p>' + highlightText(job.snippet) + '</p>';
       html += '</a>';
     });
     html += '</div>';
@@ -221,10 +221,10 @@ function renderRoleAdvice(items) {
   let html = '<div class="advice-list compact">';
   items.forEach(item => {
     html += '<div class="advice-card">';
-    html += '<h4>' + escapeHtml(item.role) + '</h4>';
-    html += '<p>' + escapeHtml(item.signal) + '</p>';
+    html += '<h4>' + highlightText(item.role) + '</h4>';
+    html += '<p>' + highlightText(item.signal) + '</p>';
     html += '<ul>';
-    item.prepare.slice(0, 2).forEach(point => { html += '<li>' + escapeHtml(point) + '</li>'; });
+    item.prepare.slice(0, 2).forEach(point => { html += '<li>' + highlightText(point) + '</li>'; });
     html += '</ul></div>';
   });
   html += '</div>';
@@ -235,6 +235,13 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text || '';
   return div.innerHTML;
+}
+
+function highlightText(text) {
+  let html = escapeHtml(text);
+  const keywordPattern = /(AI产品经理|AI产品评估|AI运营|产品经理|商业化\/增长|训练\/标注|提示词工程|RAG\/Agent认知|了解大模型原理|大模型\/LLM|Agent\/智能体|RAG\/检索增强|Prompt Engineering|英语能力|数据分析能力|数据分析|AI产品方法论|多模态|模型评估|模型微调|商业化|产品|运营|Meta|Anthropic|Microsoft|Google|小红书|哔哩哔哩|B站|快手|美团|阿里巴巴|阿里|京东|字节跳动|腾讯|Redmond, WA|Sunnyvale, CA|San Francisco, CA|Mountain View, CA|Menlo Park, CA|Seattle, WA|旧金山|北京|上海|深圳|杭州|项目案例|评估指标|ROI)/g;
+  html = html.replace(keywordPattern, '<mark class="text-mark">$1</mark>');
+  return html.replace(/(\d+(?:\.\d+)?%?)(?=\s*(?:个|条|家|天|%|，|、|。|；|：|:|）|\)|$))/g, '<mark class="text-mark">$1</mark>');
 }
 </script>
 {% endblock %}

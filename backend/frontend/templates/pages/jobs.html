@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}AI求职趋势雷达 - 岗位证据库{% endblock %}
+{% block title %}AI招聘趋势雷达 - 岗位证据库{% endblock %}
 
 {% block content %}
 <div class="content-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -34,8 +34,12 @@
     </select>
     <select name="platform">
       <option value="">全部平台</option>
+      <option value="third_party_serpapi">SerpApi Google Jobs</option>
+      <option value="third_party_adzuna">Adzuna</option>
       <option value="tencent">腾讯</option>
-      <option value="bytedance">字节跳动</option>
+      <option value="official_meituan">美团（官网）</option>
+      <option value="official_anthropic">Anthropic（官网）</option>
+      <option value="bytedance">字节跳动（历史/不稳定）</option>
     </select>
     <input type="text" name="keyword" placeholder="搜索 Agent / RAG / 评测..." style="width:230px;">
     <button type="submit" class="btn">搜索证据</button>

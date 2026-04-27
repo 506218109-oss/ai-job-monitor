@@ -12,6 +12,8 @@ from app.scrapers.boss import BossScraper
 from app.scrapers.liepin import LiepinScraper
 from app.scrapers.tencent import TencentScraper
 from app.scrapers.bytedance import ByteDanceScraper
+from app.scrapers.official_jobs import OfficialJobsScraper
+from app.scrapers.third_party_jobs import ThirdPartyJobsScraper
 from app.scrapers.base import JobData
 from app.config import settings
 
@@ -19,7 +21,7 @@ from app.config import settings
 async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
     """
     Full scrape pipeline: fetch jobs, store in DB, update company stats.
-    Supports: boss, liepin
+    Supports: boss, liepin, tencent, bytedance, official, third_party
     """
     if keywords is None:
         keywords = settings.SEARCH_KEYWORDS
@@ -68,6 +70,18 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
             delay_between_cities = 0
             fetch_details = False
             nationwide_api = True  # API returns all cities regardless of parameter
+        elif platform == "official":
+            scraper = OfficialJobsScraper()
+            max_p = 2
+            delay_between_cities = 0
+            fetch_details = True
+            nationwide_api = True
+        elif platform == "third_party":
+            scraper = ThirdPartyJobsScraper(search_keywords=keywords)
+            max_p = 1
+            delay_between_cities = 0
+            fetch_details = False
+            nationwide_api = True
         else:
             scraper = TencentScraper()
             max_p = 5
@@ -79,7 +93,9 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
         # For nationwide APIs, search once per keyword without city
         cities_to_search = [""] if nationwide_api else settings.TARGET_CITIES
 
-        for keyword in keywords:
+        keywords_to_search = ["third_party_profile"] if platform == "third_party" else keywords
+
+        for keyword in keywords_to_search:
             for city in cities_to_search:
                 try:
                     jobs = await scraper.search(keyword, city, max_pages=max_p)
@@ -123,6 +139,11 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
         run.jobs_found = total_found
         run.jobs_new = total_new
         run.jobs_updated = total_updated
+        if getattr(scraper, "source_statuses", None):
+            run.meta_json = json.dumps(
+                {"source_statuses": scraper.source_statuses},
+                ensure_ascii=False,
+            )
         run.status = "success" if total_found > 0 else "partial"
         run.finished_at = datetime.utcnow()
 
@@ -156,7 +177,9 @@ async def run_scrape(platform: str = "liepin", keywords: list[str] = None):
 
         # Update company stats
         try:
-            mark_inactive_jobs(db, days=2)
+            stale_platforms = getattr(scraper, "platforms_to_mark_stale", [platform])
+            if result["status"] == "success":
+                mark_inactive_jobs(db, days=2, platforms=stale_platforms)
             update_company_stats(db)
             db.commit()
         except Exception as e:
@@ -189,6 +212,8 @@ AI_REQUIRED_KEYWORDS = [
     "神经网络", "自然语言处理", "计算机视觉", "语音识别", "推荐系统",
     "文心", "通义", "kimi", "豆包", "混元", "星火", "claude", "数据标注",
     "训练师", "RLHF", "SFT", "对齐", "生成式",
+    "artificial intelligence", "generative ai", "genai", "large language model",
+    "foundation model", "llms", "agentic", "evaluation", "evals",
 ]
 
 
@@ -357,13 +382,16 @@ def update_company_stats(db: Session):
     db.commit()
 
 
-def mark_inactive_jobs(db: Session, days: int = 2):
+def mark_inactive_jobs(db: Session, days: int = 2, platforms: Optional[list[str]] = None):
     """Mark jobs as inactive if not seen for N days."""
     cutoff = datetime.utcnow() - timedelta(days=days)
-    stale_jobs = db.query(Job).filter(
+    query = db.query(Job).filter(
         Job.is_active == True,
         Job.last_seen_at < cutoff,
-    ).all()
+    )
+    if platforms:
+        query = query.filter(Job.platform.in_(platforms))
+    stale_jobs = query.all()
     for job in stale_jobs:
         job.is_active = False
         _record_job_event(db, job, "removed", {

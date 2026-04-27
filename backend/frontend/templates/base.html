@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}AI求职趋势雷达{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <title>{% block title %}AI招聘趋势雷达{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=20260427-6">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   {% block head %}{% endblock %}
@@ -13,7 +13,7 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <span class="dot"></span> AI 求职趋势雷达
+        <span class="dot"></span> AI招聘趋势雷达
       </div>
       <nav class="sidebar-nav">
         <a href="/" {% if request.url.path == '/' %}class="active"{% endif %}>
@@ -31,14 +31,16 @@
       </nav>
       <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--c-border); font-size: 0.75rem; color: var(--c-text-secondary);">
         每日 9:00 更新<br>
-        腾讯 + 字节跳动 JD 趋势
+        第三方聚合源优先<br>
+        目标公司：小红书、B站、快手、美团、阿里、京东、Meta、Google、Anthropic、Microsoft
       </div>
+      <div class="sidebar-quote" id="sidebar-quote" aria-live="polite"></div>
     </aside>
     <main class="main-content">
       {% block content %}{% endblock %}
     </main>
   </div>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=20260427-3"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

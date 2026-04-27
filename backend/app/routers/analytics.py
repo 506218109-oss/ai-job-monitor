@@ -182,6 +182,12 @@ def get_market_sources():
     }
 
 
+@router.get("/analytics/market-brief")
+def get_market_brief(force_refresh: bool = False):
+    from app.services.market_brief_service import get_daily_market_brief
+    return get_daily_market_brief(force_refresh=force_refresh)
+
+
 @router.get("/analytics/export/csv")
 def export_csv(db: Session = Depends(get_db)):
     jobs = db.query(Job).filter(Job.is_active == True).order_by(Job.posting_date.desc().nullslast()).all()

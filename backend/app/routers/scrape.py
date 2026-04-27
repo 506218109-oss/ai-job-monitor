@@ -10,6 +10,8 @@ from app.models import ScrapeRun
 from app.schemas import ScrapeTrigger
 from app.config import settings
 from app.services.scraping_service import run_scrape
+from app.scrapers.official_jobs import get_official_source_statuses
+from app.scrapers.third_party_jobs import get_third_party_source_statuses
 
 router = APIRouter()
 
@@ -83,7 +85,7 @@ def trigger_scrape(
     keywords = body.keywords if body and body.keywords else None
 
     if platforms == ["all"]:
-        platforms = ["tencent", "bytedance"]
+        platforms = ["third_party"]
 
     # Check if a scrape is already running
     running = db.query(ScrapeRun).filter(ScrapeRun.status == "running").first()
@@ -107,3 +109,29 @@ def trigger_scrape(
             background_tasks.add_task(_run_scrape_sync, p, keywords)
 
     return {"message": f"Scrape started for {', '.join(platforms)}", "status": "started", "run_ids": run_ids}
+
+
+@router.get("/scrape/sources")
+def get_scrape_sources():
+    return {
+        "sources": [
+            *get_third_party_source_statuses(),
+            {
+                "id": "tencent",
+                "company": "腾讯",
+                "region": "中国",
+                "status": "manual",
+                "career_url": "https://careers.tencent.com",
+                "note": "公开招聘官网 API；为避免影响后续官网投递链路，默认调度不触发，仅保留手动备选。",
+            },
+            {
+                "id": "bytedance",
+                "company": "字节跳动",
+                "region": "中国",
+                "status": "skipped",
+                "career_url": "https://jobs.bytedance.com",
+                "note": "当前实现依赖 CSRF token；默认全量任务不再触发。",
+            },
+            *get_official_source_statuses(),
+        ]
+    }

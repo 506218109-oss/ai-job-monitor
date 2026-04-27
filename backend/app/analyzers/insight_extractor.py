@@ -28,6 +28,19 @@ SKILL_CATEGORY_LABELS = {
     "soft": "通用协作能力",
 }
 
+TARGET_COMPANY_NAMES = [
+    "小红书",
+    "哔哩哔哩",
+    "快手",
+    "美团",
+    "阿里巴巴",
+    "京东",
+    "Meta",
+    "Google",
+    "Anthropic",
+    "Microsoft",
+]
+
 INDUSTRY_SIGNALS = [
     {
         "topic": "Agent/RAG 产品化",
@@ -218,7 +231,7 @@ def extract_recruitment_insights(db: Session) -> dict:
     # 10. Generate daily summary text
     summary_text = _generate_summary(
         total, type_pcts, exp_required, edu_required,
-        concept_pcts, top_skills, trend, cities_top, companies_top
+        concept_pcts, top_skills, trend, cities_top, companies_top, TARGET_COMPANY_NAMES
     )
 
     return {
@@ -242,67 +255,57 @@ def extract_recruitment_insights(db: Session) -> dict:
         "career_advice": career_advice,
         "evidence_examples": evidence_examples,
         "daily_radar": daily_radar,
-        "positioning": "每日追踪腾讯、字节 AI 非研发岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点输出求职准备建议。",
+        "positioning": "每日优先追踪第三方招聘聚合源中的目标公司 AI 相关岗位，从 JD 细节中提取能力要求，并结合行业/KOL观点输出求职准备建议。",
         "trend_policy": {
             "periods": [7, 30],
             "removed_definition": "连续 2 天未抓到同一岗位即标记为下线",
             "track_updates": True,
         },
-        "data_note": "当前样本聚焦腾讯与字节跳动，跨公司对比应同时参考公司招聘入口、抓取关键词和样本占比。",
+        "data_note": "当前样本优先来自第三方招聘聚合源；信息源目标公司：" + "、".join(TARGET_COMPANY_NAMES) + "；跨公司对比应同时参考聚合源覆盖、抓取关键词和样本占比。",
+        "source_companies": TARGET_COMPANY_NAMES,
         "trend": trend,
         "summary_text": summary_text,
         "generated_at": datetime.utcnow().isoformat(),
     }
 
 
-def _generate_summary(total, type_pcts, exp, edu, concepts, skills, trend, cities, companies):
-    """Generate a human-readable daily summary."""
+def _generate_summary(total, type_pcts, exp, edu, concepts, skills, trend, cities, companies, source_companies):
+    """Generate a concise daily summary for the homepage radar."""
     lines = []
 
-    # Overall
-    lines.append(f"当前监测到 {total} 个腾讯/字节 AI 相关非研发岗位，重点用于观察产品、运营、商业化等求职趋势。")
+    lines.append(f"当前监测到 {total} 个目标公司 AI 相关岗位，重点观察产品、运营、商业化等求职趋势。")
 
     if companies:
-        company_items = [f"{c['name']} {c['count']} 个" for c in companies[:2]]
-        lines.append(f"样本来源以 {'、'.join(company_items)} 为主，解读趋势时需要注意公司样本占比。")
+        company_items = [f"{c['name']} {c['count']} 个" for c in companies[:3]]
+        lines.append(
+            f"信息源目标公司覆盖 {'、'.join(source_companies)}；当前样本以 {'、'.join(company_items)} 为主，解读趋势时需注意公司样本占比。"
+        )
 
-    # Type breakdown
+    mixed_signals = []
     type_items = [f"{t}（{p}%）" for t, p in list(type_pcts.items())[:3]]
+    concept_items = [f"{c}（{p}%）" for c, p in list(concepts.items())[:3]]
     if type_items:
-        lines.append(f"岗位类型以 {'、'.join(type_items)} 为主，可优先拆解这些岗位的 JD 要求准备简历。")
+        mixed_signals.append(f"岗位类型以 {'、'.join(type_items)} 为主")
+    if concept_items:
+        mixed_signals.append(f"JD 高频 AI 信号为 {'、'.join(concept_items)}")
+    if mixed_signals:
+        lines.append("；".join(mixed_signals) + "，可优先拆解这些 JD 要求准备简历。")
 
-    # City
     if cities:
         top_cities = [f"{c[0]}（{c[1]}个）" for c in cities[:3]]
         lines.append(f"主要城市集中在 {'、'.join(top_cities)}，求职时可按城市机会密度安排投递优先级。")
 
-    # Experience
-    top_exp = exp.most_common(3)
-    if top_exp:
-        exp_str = "、".join(f"{e}（{n}个）" for e, n in top_exp)
-        lines.append(f"经验要求分布为 {exp_str}，可用于判断校招/转岗/社招的匹配度。")
-
-    # Education
-    top_edu = edu.most_common(3)
-    if top_edu:
-        edu_str = "、".join(f"{e}（{n}个）" for e, n in top_edu)
-        lines.append(f"学历要求分布为 {edu_str}，但实际筛选仍应结合岗位细分方向判断。")
-
-    # Hot AI concepts
-    if concepts:
-        top_concepts = [f"{c}（{p}%）" for c, p in list(concepts.items())[:5]]
-        lines.append(f"JD 中高频 AI 信号包括 {'、'.join(top_concepts)}，这些应成为简历和面试案例的关键词。")
-
-    # Hot skills
     if skills:
         top_skill_names = [s["name"] for s in skills[:5]]
-        lines.append(f"高频能力关键词包括 {'、'.join(top_skill_names)}，建议用具体项目证明，而不是只写“了解 AI”。")
+        lines.append(
+            f"高频能力关键词包括 {'、'.join(top_skill_names)}；今日新增 {trend['today_new']} 个岗位，下线 {trend['removed_today']} 个岗位，近 7 天新增 {trend['new_last_7_days']} 个岗位。"
+        )
+    else:
+        lines.append(
+            f"今日新增 {trend['today_new']} 个岗位，下线 {trend['removed_today']} 个岗位，近 7 天新增 {trend['new_last_7_days']} 个岗位。"
+        )
 
-    # Trend
-    lines.append(f"今日新增 {trend['today_new']} 个岗位，下线 {trend['removed_today']} 个岗位，近 7 天新增 {trend['new_last_7_days']} 个岗位。")
-
-    return lines
-
+    return lines[:5]
 
 def _group_skills_by_category(skills):
     grouped = {}
@@ -326,7 +329,7 @@ def _build_market_signals(concept_pcts):
             for concept in item["concepts"]
             if concept in concept_pcts
         ]
-        source_refs = get_sources_for_topics(item.get("source_topics", []))[:5]
+        source_refs = get_sources_for_topics(item.get("source_topics", []))[:10]
         signals.append({
             "topic": item["topic"],
             "source_type": "行业/KOL观点",

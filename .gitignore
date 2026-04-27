@@ -27,3 +27,6 @@ Thumbs.db
 
 # Environment
 .envrc
+.env
+.env.*
+!.env.example

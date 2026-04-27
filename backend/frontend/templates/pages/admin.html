@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}AI求职趋势雷达 - 数据源{% endblock %}
+{% block title %}AI招聘趋势雷达 - 数据源{% endblock %}
 
 {% block content %}
 <div class="content-header">
   <h1>数据源</h1>
-  <p>监控腾讯、字节招聘数据抓取状态，确保每日趋势和求职建议有稳定数据来源</p>
+  <p>默认使用第三方招聘聚合源；官网、ATS 和不稳定来源只做状态标记或手动备选，不进入默认抓取。</p>
 </div>
 
 <div class="grid-2" style="margin-bottom: 2rem;">
@@ -18,17 +18,24 @@
     <div class="section-title">手动触发抓取</div>
     <p style="color:var(--c-text-secondary);font-size:0.9rem;margin-bottom:1rem;">系统每日 9:00 自动抓取，也可手动触发</p>
     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
-      <form hx-post="/api/scrape/trigger?platform=tencent" hx-target="#trigger-result" style="margin:0">
-        <button type="submit" class="btn">抓取 腾讯</button>
-      </form>
-      <form hx-post="/api/scrape/trigger?platform=bytedance" hx-target="#trigger-result" style="margin:0">
-        <button type="submit" class="btn">抓取 字节跳动</button>
+      <form hx-post="/api/scrape/trigger?platform=third_party" hx-target="#trigger-result" style="margin:0">
+        <button type="submit" class="btn btn-contrast">抓取 第三方聚合源</button>
       </form>
       <form hx-post="/api/scrape/trigger?platform=all" hx-target="#trigger-result" style="margin:0">
-        <button type="submit" class="btn btn-contrast">抓取 全部平台</button>
+        <button type="submit" class="btn">抓取 默认任务</button>
+      </form>
+      <form hx-post="/api/scrape/trigger?platform=tencent" hx-target="#trigger-result" style="margin:0">
+        <button type="submit" class="btn">手动抓取 腾讯官网</button>
       </form>
     </div>
     <div id="trigger-result" style="font-size:0.88rem;"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:2rem;">
+  <div class="section-title">数据源状态</div>
+  <div id="scrape-sources" hx-get="/api/scrape/sources" hx-trigger="load">
+    <p style="color: var(--c-text-secondary);">加载中…</p>
   </div>
 </div>
 
@@ -42,10 +49,11 @@
 <div class="card">
   <div class="section-title">配置信息</div>
   <table>
-    <tr><td style="color:var(--c-text-secondary);width:120px;">平台</td><td>腾讯 / 字节跳动</td></tr>
+    <tr><td style="color:var(--c-text-secondary);width:120px;">默认平台</td><td>第三方聚合源：SerpApi Google Jobs / Adzuna；未配置 API key 时显示为待配置并跳过</td></tr>
     <tr><td style="color:var(--c-text-secondary);">搜索关键词</td><td>AI产品经理、大模型产品经理、人工智能产品经理、AI运营、大模型运营、AI产品运营、数据产品经理、提示词工程师、AI训练师</td></tr>
-    <tr><td style="color:var(--c-text-secondary);">目标城市</td><td>北京、上海、深圳、杭州、广州</td></tr>
+    <tr><td style="color:var(--c-text-secondary);">目标范围</td><td>第三方聚合源按全球目标公司查询；海外岗位中文展示，国内公司覆盖取决于聚合源收录</td></tr>
     <tr><td style="color:var(--c-text-secondary);">定时更新</td><td>每日 9:00</td></tr>
+    <tr><td style="color:var(--c-text-secondary);">安全边界</td><td>默认不访问目标公司官网招聘系统；不使用账号、Cookie、验证码、会话签名、投递和候选人隐私接口</td></tr>
   </table>
 </div>
 {% endblock %}
@@ -62,12 +70,13 @@
         html += '<span style="font-size:0.82rem;color:var(--c-text-secondary);">' + new Date(data.last_run.started_at).toLocaleString('zh-CN') + '</span>';
         html += '</div>';
         html += '<div style="margin-top:0.5rem;display:flex;gap:1.5rem;font-size:0.9rem;">';
-        html += '<span>状态: <strong>' + (data.last_run.status === 'success' ? '成功' : data.last_run.status) + '</strong></span>';
+        html += '<span>平台: <strong>' + escapeHtml(platformLabel(data.last_run.platform)) + '</strong></span>';
+        html += '<span>状态: <strong>' + escapeHtml(data.last_run.status === 'success' ? '成功' : data.last_run.status) + '</strong></span>';
         html += '<span>发现: ' + (data.last_run.jobs_found || 0) + ' 条</span>';
         html += '<span>新增: ' + (data.last_run.jobs_new || 0) + ' 条</span>';
         html += '</div>';
         if (data.last_run.error_message) {
-          html += '<p style="color:var(--c-orange);margin-top:0.5rem;font-size:0.85rem;">错误: ' + data.last_run.error_message + '</p>';
+          html += '<p style="color:var(--c-orange);margin-top:0.5rem;font-size:0.85rem;">错误: ' + escapeHtml(data.last_run.error_message) + '</p>';
         }
       } else {
         html += '<p style="color:var(--c-text-secondary);">尚未执行抓取</p>';
@@ -85,7 +94,33 @@
       const data = JSON.parse(evt.detail.xhr.responseText);
       const cls = data.status === 'started' ? 'color:var(--c-green);' : 'color:var(--c-orange);';
       document.getElementById('trigger-result').innerHTML =
-        '<p style="' + cls + 'font-size:0.88rem;">' + data.message + '</p>';
+        '<p style="' + cls + 'font-size:0.88rem;">' + escapeHtml(data.message) + '</p>';
+    }
+
+    if (evt.detail.target.id === 'scrape-sources') {
+      const data = JSON.parse(evt.detail.xhr.responseText);
+      const sources = data.sources || [];
+      const active = sources.filter(s => s.status === 'active').length;
+      const needsConfig = sources.filter(s => s.status === 'needs_config').length;
+      const skipped = sources.filter(s => s.status === 'skipped').length;
+      let html = '<div class="source-summary" style="margin-bottom:1rem;grid-template-columns:repeat(4,1fr);">';
+      html += '<div><strong>' + active + '</strong><span>已配置第三方源</span></div>';
+      html += '<div><strong>' + needsConfig + '</strong><span>待配置 API key</span></div>';
+      html += '<div><strong>' + skipped + '</strong><span>按安全边界跳过</span></div>';
+      html += '<div><strong>' + sources.length + '</strong><span>目标源总数</span></div>';
+      html += '</div>';
+      html += '<table class="mini-table"><thead><tr><th>公司</th><th>范围</th><th>状态</th><th>官网</th><th>说明</th></tr></thead><tbody>';
+      sources.forEach(source => {
+        html += '<tr>';
+        html += '<td><strong>' + escapeHtml(source.company) + '</strong><div class="muted-small">' + escapeHtml(source.id) + '</div></td>';
+        html += '<td>' + escapeHtml(source.region) + '</td>';
+        html += '<td>' + statusTag(source.status) + '</td>';
+        html += '<td><a href="' + escapeHtml(source.career_url || '#') + '" target="_blank" rel="noopener">官网</a></td>';
+        html += '<td style="font-size:0.82rem;color:var(--c-text-secondary);line-height:1.55;">' + escapeHtml(source.note || '') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('scrape-sources').innerHTML = html;
     }
 
     if (evt.detail.target.id === 'scrape-history') {
@@ -101,15 +136,47 @@
                            r.status === 'failed' ? 'var(--c-orange)' : 'var(--c-text-secondary)';
         html += '<tr>';
         html += '<td style="font-size:0.85rem;">' + (r.started_at ? new Date(r.started_at).toLocaleString('zh-CN') : '-') + '</td>';
-        html += '<td>' + (r.platform || '-') + '</td>';
-        html += '<td style="font-size:0.82rem;">' + (r.keyword || '-') + '</td>';
+        html += '<td>' + escapeHtml(platformLabel(r.platform)) + '</td>';
+        html += '<td style="font-size:0.82rem;">' + escapeHtml(r.keyword || '-') + '</td>';
         html += '<td>' + (r.jobs_found || 0) + ' / ' + (r.jobs_new || 0) + '</td>';
-        html += '<td style="color:' + statusColor + ';font-weight:600;">' + r.status + '</td>';
+        html += '<td style="color:' + statusColor + ';font-weight:600;">' + escapeHtml(r.status) + '</td>';
         html += '</tr>';
       });
       html += '</tbody></table>';
       document.getElementById('scrape-history').innerHTML = html;
     }
   });
+
+  function statusTag(status) {
+    const statusMap = {
+      active: ['可抓取', 'tag-green'],
+      manual: ['手动备选', 'tag-blue'],
+      needs_config: ['待配置', 'tag-purple'],
+      skipped: ['跳过', 'tag-orange'],
+      unstable: ['不稳定', 'tag-orange'],
+    };
+    const [label, cls] = statusMap[status] || [status || '未知', 'tag'];
+    return '<span class="tag ' + cls + '">' + escapeHtml(label) + '</span>';
+  }
+
+  function platformLabel(platform) {
+    const labels = {
+      tencent: '腾讯',
+      bytedance: '字节跳动',
+      third_party: '第三方聚合源',
+      third_party_serpapi: 'SerpApi Google Jobs',
+      third_party_adzuna: 'Adzuna',
+      official: '目标公司官网',
+      official_meituan: '美团（官网）',
+      official_anthropic: 'Anthropic（官网）',
+    };
+    return labels[platform] || platform || '-';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
 </script>
 {% endblock %}
