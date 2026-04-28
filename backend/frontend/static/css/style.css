@@ -175,6 +175,7 @@ a:hover { text-decoration: underline; }
 .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; }
 .insight-balance-grid {
   align-items: start;
+  gap: 1.5rem;
 }
 .career-card {
   display: flex;
@@ -528,7 +529,7 @@ tr:hover td { background: #fafaf9; }
   border-top: 1px solid var(--c-border);
   margin-top: 1.1rem;
   padding-top: 1rem;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;

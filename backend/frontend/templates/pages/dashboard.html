@@ -326,8 +326,10 @@ function scheduleMaimaiBalance() {
 function resetMaimaiLayout(box, rightCard) {
   box.hidden = false;
   box.style.display = '';
+  box.style.height = '';
   box.style.maxHeight = '';
   box.style.overflow = '';
+  rightCard.style.height = '';
   rightCard.style.maxHeight = '';
   rightCard.style.overflow = '';
   box.querySelectorAll('.maimai-list li').forEach(item => item.classList.remove('is-hidden'));
@@ -356,6 +358,7 @@ function balanceMaimaiHot() {
 
   if (available < 120) {
     if (baseRightHeight <= leftHeight) {
+      rightCard.style.height = leftHeight + 'px';
       rightCard.style.maxHeight = leftHeight + 'px';
       rightCard.style.overflow = 'hidden';
     }
@@ -366,6 +369,7 @@ function balanceMaimaiHot() {
   box.style.display = '';
   box.style.maxHeight = available + 'px';
   box.style.overflow = 'hidden';
+  rightCard.style.height = leftHeight + 'px';
   rightCard.style.maxHeight = leftHeight + 'px';
   rightCard.style.overflow = 'hidden';
   const fitLimit = Math.max(0, available - 16);
