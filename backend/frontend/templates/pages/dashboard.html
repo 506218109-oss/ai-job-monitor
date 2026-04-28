@@ -52,20 +52,20 @@
   </div>
 </div>
 
-<div class="grid-2" style="margin-bottom: 2rem;">
-  <div class="card">
+<div class="grid-2 insight-balance-grid" style="margin-bottom: 2rem;">
+  <div class="card" id="market-signals-card">
     <div class="section-title">行业/KOL观点如何映射到招聘</div>
     <div id="market-signals" hx-get="/api/analytics/insights" hx-trigger="load from:body">
       <p style="color: var(--c-text-secondary);">加载中…</p>
     </div>
   </div>
-  <div class="card career-card">
+  <div class="card career-card" id="career-card">
     <div class="section-title">我该如何准备</div>
     <div id="career-advice" hx-get="/api/analytics/insights" hx-trigger="load from:body">
       <p style="color: var(--c-text-secondary);">加载中…</p>
     </div>
     <div class="maimai-hot-box" id="maimai-hot" hx-get="/api/analytics/maimai-hot" hx-trigger="load from:body">
-      <p style="color: var(--c-text-secondary);">正在读取脉脉公开热点…</p>
+      <p style="color: var(--c-text-secondary);">正在读取脉脉热榜公开摘要…</p>
     </div>
   </div>
 </div>
@@ -155,9 +155,11 @@
     }
     if (evt.detail.target.id === 'market-signals') {
       renderMarketSignals(JSON.parse(evt.detail.xhr.responseText));
+      scheduleMaimaiBalance();
     }
     if (evt.detail.target.id === 'career-advice') {
       renderCareerAdvice(JSON.parse(evt.detail.xhr.responseText));
+      scheduleMaimaiBalance();
     }
     if (evt.detail.target.id === 'maimai-hot') {
       renderMaimaiHot(JSON.parse(evt.detail.xhr.responseText));
@@ -169,6 +171,7 @@
       renderMarketBrief(JSON.parse(evt.detail.xhr.responseText));
     }
   });
+  window.addEventListener('resize', scheduleMaimaiBalance);
 })();
 
 function renderDailyRadar(data) {
@@ -278,7 +281,7 @@ function renderEventTrends(data) {
 
 function renderMaimaiHot(data) {
   let html = '<div class="maimai-hot-head">';
-  html += '<span>脉脉今日热点</span>';
+  html += '<span>脉脉热榜公开摘要</span>';
   html += '<small>' + escapeHtml(data.scope_label || '北京时间当日') + '</small>';
   html += '</div>';
 
@@ -292,7 +295,7 @@ function renderMaimaiHot(data) {
   }
 
   html += '<ul class="maimai-list">';
-  data.topics.slice(0, 8).forEach((item, index) => {
+  data.topics.forEach((item, index) => {
     html += '<li>';
     html += '<span class="maimai-rank">' + (index + 1) + '</span>';
     html += '<div class="maimai-topic-body">';
@@ -304,8 +307,97 @@ function renderMaimaiHot(data) {
     html += '</li>';
   });
   html += '</ul>';
+  html += '<p class="maimai-overflow-note is-hidden" aria-live="polite"></p>';
   html += '<p class="maimai-policy">' + escapeHtml(data.policy || '') + '</p>';
   document.getElementById('maimai-hot').innerHTML = html;
+  scheduleMaimaiBalance();
+}
+
+let maimaiBalanceRaf = null;
+
+function scheduleMaimaiBalance() {
+  if (maimaiBalanceRaf) cancelAnimationFrame(maimaiBalanceRaf);
+  maimaiBalanceRaf = requestAnimationFrame(() => {
+    maimaiBalanceRaf = null;
+    balanceMaimaiHot();
+  });
+}
+
+function resetMaimaiLayout(box, rightCard) {
+  box.hidden = false;
+  box.style.display = '';
+  box.style.maxHeight = '';
+  box.style.overflow = '';
+  rightCard.style.maxHeight = '';
+  rightCard.style.overflow = '';
+  box.querySelectorAll('.maimai-list li').forEach(item => item.classList.remove('is-hidden'));
+  const policy = box.querySelector('.maimai-policy');
+  const overflowNote = box.querySelector('.maimai-overflow-note');
+  if (policy) policy.classList.remove('is-hidden');
+  if (overflowNote) overflowNote.classList.add('is-hidden');
+}
+
+function balanceMaimaiHot() {
+  const leftCard = document.getElementById('market-signals-card');
+  const rightCard = document.getElementById('career-card');
+  const box = document.getElementById('maimai-hot');
+  if (!leftCard || !rightCard || !box || !box.querySelector('.maimai-hot-head')) return;
+
+  resetMaimaiLayout(box, rightCard);
+  if (window.matchMedia('(max-width: 900px)').matches) return;
+
+  const leftHeight = Math.ceil(leftCard.getBoundingClientRect().height);
+  if (!leftHeight) return;
+
+  box.hidden = true;
+  box.style.display = 'none';
+  const baseRightHeight = Math.ceil(rightCard.getBoundingClientRect().height);
+  const available = Math.floor(leftHeight - baseRightHeight);
+
+  if (available < 120) {
+    if (baseRightHeight <= leftHeight) {
+      rightCard.style.maxHeight = leftHeight + 'px';
+      rightCard.style.overflow = 'hidden';
+    }
+    return;
+  }
+
+  box.hidden = false;
+  box.style.display = '';
+  box.style.maxHeight = available + 'px';
+  box.style.overflow = 'hidden';
+  rightCard.style.maxHeight = leftHeight + 'px';
+  rightCard.style.overflow = 'hidden';
+
+  const listItems = Array.from(box.querySelectorAll('.maimai-list li'));
+  const policy = box.querySelector('.maimai-policy');
+  const overflowNote = box.querySelector('.maimai-overflow-note');
+  if (!listItems.length) return;
+
+  if (box.scrollHeight > available && policy) {
+    policy.classList.add('is-hidden');
+  }
+
+  let hiddenCount = 0;
+  for (let index = listItems.length - 1; index >= 0 && box.scrollHeight > available; index -= 1) {
+    listItems[index].classList.add('is-hidden');
+    hiddenCount += 1;
+  }
+
+  const visibleCount = listItems.length - hiddenCount;
+  if (visibleCount <= 0) {
+    box.hidden = true;
+    box.style.display = 'none';
+    return;
+  }
+
+  if (overflowNote && hiddenCount > 0) {
+    overflowNote.textContent = '已折叠 ' + hiddenCount + ' 条公开摘要';
+    overflowNote.classList.remove('is-hidden');
+    if (box.scrollHeight > available) {
+      overflowNote.classList.add('is-hidden');
+    }
+  }
 }
 
 function renderMarketBrief(data) {

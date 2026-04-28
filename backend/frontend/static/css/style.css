@@ -165,9 +165,13 @@ a:hover { text-decoration: underline; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
 .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; }
+.insight-balance-grid {
+  align-items: start;
+}
 .career-card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* ===== Insight Summary ===== */
@@ -516,9 +520,11 @@ tr:hover td { background: #fafaf9; }
   border-top: 1px solid var(--c-border);
   margin-top: 1.1rem;
   padding-top: 1rem;
-  flex: 1;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 .maimai-hot-head {
   display: flex;
@@ -539,9 +545,10 @@ tr:hover td { background: #fafaf9; }
 .maimai-list {
   list-style: none;
   display: grid;
-  gap: 1rem;
-  flex: 1;
-  align-content: space-between;
+  gap: 0.75rem;
+  flex: 0 1 auto;
+  align-content: start;
+  min-height: 0;
 }
 .maimai-list li {
   display: grid;
@@ -550,6 +557,11 @@ tr:hover td { background: #fafaf9; }
   align-items: start;
   padding: 0.82rem 0 0.95rem;
   border-bottom: 1px solid #f0f0ee;
+}
+.maimai-list li.is-hidden,
+.maimai-policy.is-hidden,
+.maimai-overflow-note.is-hidden {
+  display: none;
 }
 .maimai-list li:last-child {
   border-bottom: none;
@@ -591,6 +603,12 @@ tr:hover td { background: #fafaf9; }
 .maimai-policy {
   margin-top: 0.75rem;
   line-height: 1.5;
+}
+.maimai-overflow-note {
+  color: var(--c-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin-top: 0.55rem;
 }
 .maimai-empty {
   border-left: 3px solid var(--c-accent);

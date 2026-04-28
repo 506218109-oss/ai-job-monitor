@@ -12,7 +12,7 @@ from app.config import settings
 CN_TZ = ZoneInfo("Asia/Shanghai")
 MAIMAI_CACHE_TTL_SECONDS = 30 * 60
 SERPAPI_SEARCH_URL = "https://serpapi.com/search.json"
-MAX_TOPICS = 8
+MAX_TOPICS = 15
 
 _cache = {
     "date": None,
@@ -39,13 +39,18 @@ def get_maimai_hot_topics(target_date: Optional[date] = None, force_refresh: boo
 
     errors = []
     seen: set[tuple[str, str]] = set()
-    topics = _search_public_maimai("d", errors, MAX_TOPICS, seen)
+    topics = _search_public_maimai("d", errors, MAX_TOPICS, seen, query_variant="hotlist")
+    if len(topics) < MAX_TOPICS:
+        topics.extend(_search_public_maimai("d", errors, MAX_TOPICS - len(topics), seen, query_variant="workplace"))
     if len(topics) < MAX_TOPICS:
         topics.extend(_search_public_maimai("d", errors, MAX_TOPICS - len(topics), seen, query_variant="companies"))
     supplemented = False
     if len(topics) < MAX_TOPICS:
         supplemented = bool(topics)
-        topics.extend(_search_public_maimai("w", errors, MAX_TOPICS - len(topics), seen))
+        topics.extend(_search_public_maimai("w", errors, MAX_TOPICS - len(topics), seen, query_variant="hotlist"))
+    if len(topics) < MAX_TOPICS:
+        supplemented = bool(topics)
+        topics.extend(_search_public_maimai("w", errors, MAX_TOPICS - len(topics), seen, query_variant="workplace"))
     if len(topics) < MAX_TOPICS:
         supplemented = bool(topics)
         topics.extend(_search_public_maimai("w", errors, MAX_TOPICS - len(topics), seen, query_variant="companies"))
@@ -55,19 +60,20 @@ def get_maimai_hot_topics(target_date: Optional[date] = None, force_refresh: boo
         "date": today.isoformat(),
         "start_date": (today - timedelta(days=6)).isoformat(),
         "end_date": today.isoformat(),
-        "source": "脉脉公开搜索摘要",
+        "source": "脉脉热榜公开摘要",
         "source_url": "https://maimai.cn/",
         "scope_label": "当天 + 近 7 日补充" if supplemented and topics else "近 7 日回退" if is_fallback and topics else "北京时间当日",
         "is_fallback": is_fallback and bool(topics),
         "is_supplemented": supplemented and bool(topics),
         "items_found": len(topics),
         "topics": topics[:MAX_TOPICS],
-        "policy": "不登录脉脉、不使用 Cookie、不绕过风控；仅展示搜索引擎可见的公开摘要。",
+        "ranking_policy": "排序优先参考“脉脉热榜”相关公开结果，再用职场热议和目标公司相关公开摘要补充。",
+        "policy": "不登录脉脉、不使用 Cookie、不绕过风控；这里是搜索引擎可见的脉脉热榜/话题公开摘要，不能保证与 App 内实时热榜完全一致。",
         "source_errors": errors[:3],
         "generated_at": datetime.now(CN_TZ).isoformat(),
     }
     if not topics:
-        data["empty_message"] = "今天暂无可公开读取的脉脉热点摘要。"
+        data["empty_message"] = "今天暂无可公开读取的脉脉热榜摘要。"
     _cache.update({"date": today, "fetched_at": now, "data": data})
     return data
 
@@ -77,15 +83,16 @@ def _empty_response(today: date, status: str, message: str) -> dict:
         "date": today.isoformat(),
         "start_date": (today - timedelta(days=6)).isoformat(),
         "end_date": today.isoformat(),
-        "source": "脉脉公开搜索摘要",
+        "source": "脉脉热榜公开摘要",
         "source_url": "https://maimai.cn/",
         "scope_label": "北京时间当日",
         "is_fallback": False,
         "items_found": 0,
         "topics": [],
+        "ranking_policy": "排序优先参考“脉脉热榜”相关公开结果，再用职场热议和目标公司相关公开摘要补充。",
         "status": status,
         "empty_message": message,
-        "policy": "不登录脉脉、不使用 Cookie、不绕过风控；仅展示搜索引擎可见的公开摘要。",
+        "policy": "不登录脉脉、不使用 Cookie、不绕过风控；这里是搜索引擎可见的脉脉热榜/话题公开摘要，不能保证与 App 内实时热榜完全一致。",
         "source_errors": [],
         "generated_at": datetime.now(CN_TZ).isoformat(),
     }
@@ -100,7 +107,11 @@ def _search_public_maimai(
 ) -> list[dict]:
     if limit <= 0:
         return []
-    if query_variant == "companies":
+    if query_variant == "hotlist":
+        query = 'site:maimai.cn ("脉脉热榜" OR "脉脉 热榜" OR "热榜" OR "热门话题")'
+    elif query_variant == "workplace":
+        query = 'site:maimai.cn ("职场" OR "大厂" OR "薪资" OR "裁员" OR "AI" OR "产品") ("热榜" OR "热议" OR "热门" OR "讨论")'
+    elif query_variant == "companies":
         query = 'site:maimai.cn ("字节跳动" OR "腾讯" OR "阿里" OR "美团" OR "小红书") ("AI" OR "大模型" OR "产品" OR "运营" OR "招聘")'
     else:
         query = (
@@ -135,7 +146,7 @@ def _search_public_maimai(
         link = item.get("link") or ""
         title = _clean(item.get("title") or "")
         snippet = _clean_snippet(item.get("snippet") or "")
-        if "maimai.cn/article/detail" not in link or not title:
+        if "maimai.cn/" not in link or not title:
             continue
         key = (title, link.split("?")[0])
         if key in seen:
