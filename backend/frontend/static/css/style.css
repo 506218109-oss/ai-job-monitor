@@ -568,8 +568,7 @@ tr:hover td { background: #fafaf9; }
   border-bottom: 1px solid #f0f0ee;
 }
 .maimai-list li.is-hidden,
-.maimai-policy.is-hidden,
-.maimai-overflow-note.is-hidden {
+.maimai-policy.is-hidden {
   display: none;
 }
 .maimai-list li:last-child {
@@ -612,18 +611,6 @@ tr:hover td { background: #fafaf9; }
 .maimai-policy {
   margin-top: 0.75rem;
   line-height: 1.5;
-}
-.maimai-overflow-note {
-  align-self: stretch;
-  background: #f7f8fa;
-  border: 1px solid #e5e7eb;
-  border-radius: var(--radius);
-  color: var(--c-text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.4;
-  margin-top: 0.8rem;
-  padding: 0.55rem 0.7rem;
-  text-align: center;
 }
 .maimai-empty {
   border-left: 3px solid var(--c-accent);

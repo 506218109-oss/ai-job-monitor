@@ -307,7 +307,6 @@ function renderMaimaiHot(data) {
     html += '</li>';
   });
   html += '</ul>';
-  html += '<p class="maimai-overflow-note is-hidden" aria-live="polite"></p>';
   html += '<p class="maimai-policy">' + escapeHtml(data.policy || '') + '</p>';
   document.getElementById('maimai-hot').innerHTML = html;
   scheduleMaimaiBalance();
@@ -334,9 +333,7 @@ function resetMaimaiLayout(box, rightCard) {
   rightCard.style.overflow = '';
   box.querySelectorAll('.maimai-list li').forEach(item => item.classList.remove('is-hidden'));
   const policy = box.querySelector('.maimai-policy');
-  const overflowNote = box.querySelector('.maimai-overflow-note');
   if (policy) policy.classList.remove('is-hidden');
-  if (overflowNote) overflowNote.classList.add('is-hidden');
 }
 
 function balanceMaimaiHot() {
@@ -376,7 +373,6 @@ function balanceMaimaiHot() {
 
   const listItems = Array.from(box.querySelectorAll('.maimai-list li'));
   const policy = box.querySelector('.maimai-policy');
-  const overflowNote = box.querySelector('.maimai-overflow-note');
   if (!listItems.length) return;
 
   if (box.scrollHeight > fitLimit && policy) {
@@ -394,24 +390,6 @@ function balanceMaimaiHot() {
     box.hidden = true;
     box.style.display = 'none';
     return;
-  }
-
-  if (overflowNote && hiddenCount > 0) {
-    overflowNote.textContent = '还有 ' + hiddenCount + ' 条已折叠';
-    overflowNote.classList.remove('is-hidden');
-    for (let index = listItems.length - hiddenCount - 1; index >= 0 && box.scrollHeight > fitLimit; index -= 1) {
-      listItems[index].classList.add('is-hidden');
-      hiddenCount += 1;
-      overflowNote.textContent = '还有 ' + hiddenCount + ' 条已折叠';
-    }
-    if (listItems.every(item => item.classList.contains('is-hidden'))) {
-      box.hidden = true;
-      box.style.display = 'none';
-      return;
-    }
-    if (box.scrollHeight > fitLimit) {
-      overflowNote.classList.add('is-hidden');
-    }
   }
 }
 
