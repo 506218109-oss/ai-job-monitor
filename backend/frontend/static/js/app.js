@@ -110,12 +110,25 @@
   function renderSidebarQuote(quote) {
     const target = document.getElementById('sidebar-quote');
     if (!target) return;
+    const dateKey = getBeijingDateKey(new Date());
 
     target.innerHTML = `
       <div class="sidebar-quote-label">今日哲思</div>
       <p>${escapeHtml(quote.text)}</p>
       ${sourceHtml(quote, 'sidebar-quote-source')}
     `;
+    target.setAttribute('role', 'button');
+    target.setAttribute('tabindex', '0');
+    target.setAttribute('aria-label', '打开每日哲思弹窗');
+    target.onclick = (event) => {
+      if (event.target.closest('a')) return;
+      renderDailyQuoteModal(quote, dateKey, { forceOpen: true });
+    };
+    target.onkeydown = (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      renderDailyQuoteModal(quote, dateKey, { forceOpen: true });
+    };
   }
 
   function dismissQuoteModal(dateKey, overlay) {
@@ -127,9 +140,9 @@
     overlay.remove();
   }
 
-  function renderDailyQuoteModal(quote, dateKey) {
+  function renderDailyQuoteModal(quote, dateKey, options = {}) {
     const params = new URLSearchParams(window.location.search);
-    const forceOpen = params.has('quote');
+    const forceOpen = Boolean(options.forceOpen) || params.has('quote');
 
     try {
       const dismissedDate = window.localStorage.getItem('ai-job-radar-quote-dismissed');
@@ -138,6 +151,7 @@
       // If localStorage is unavailable, show the card once per page load.
     }
 
+    document.querySelectorAll('.daily-quote-overlay').forEach((node) => node.remove());
     const overlay = document.createElement('div');
     overlay.className = 'daily-quote-overlay';
     overlay.setAttribute('role', 'dialog');

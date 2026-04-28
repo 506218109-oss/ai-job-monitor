@@ -707,6 +707,11 @@ tr:hover td { background: #fafaf9; }
   padding: 0.85rem 0 0;
   border-top: 1px solid var(--c-border);
   color: var(--c-text-secondary);
+  cursor: pointer;
+}
+.sidebar-quote:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
 }
 .sidebar-quote-label {
   color: var(--c-accent);
