@@ -331,7 +331,7 @@ function resetMaimaiLayout(box, rightCard) {
   rightCard.style.height = '';
   rightCard.style.maxHeight = '';
   rightCard.style.overflow = '';
-  box.querySelectorAll('.maimai-list li').forEach(item => item.classList.remove('is-hidden'));
+  box.querySelectorAll('.maimai-list li').forEach(item => item.classList.remove('is-hidden', 'is-compact'));
   const policy = box.querySelector('.maimai-policy');
   if (policy) policy.classList.remove('is-hidden');
 }
@@ -390,6 +390,16 @@ function balanceMaimaiHot() {
     box.hidden = true;
     box.style.display = 'none';
     return;
+  }
+
+  const compactCandidate = listItems[visibleCount];
+  if (compactCandidate) {
+    compactCandidate.classList.remove('is-hidden');
+    compactCandidate.classList.add('is-compact');
+    if (box.scrollHeight > fitLimit) {
+      compactCandidate.classList.add('is-hidden');
+      compactCandidate.classList.remove('is-compact');
+    }
   }
 }
 

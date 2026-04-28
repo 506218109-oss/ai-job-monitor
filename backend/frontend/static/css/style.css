@@ -574,6 +574,10 @@ tr:hover td { background: #fafaf9; }
 .maimai-list li:last-child {
   border-bottom: none;
 }
+.maimai-list li.is-compact {
+  border-bottom: none;
+  padding: 0.52rem 0 0.62rem;
+}
 .maimai-rank {
   display: inline-flex;
   align-items: center;
@@ -601,6 +605,16 @@ tr:hover td { background: #fafaf9; }
   font-size: 0.8rem;
   line-height: 1.65;
   margin-top: 0.38rem;
+}
+.maimai-list li.is-compact p {
+  display: none;
+}
+.maimai-list li.is-compact a,
+.maimai-list li.is-compact strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .maimai-list small {
   display: block;
