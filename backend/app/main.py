@@ -104,7 +104,13 @@ def get_overview_stats():
 
         company_counts = db.query(
             Job.company_name, func.count(Job.id)
-        ).filter(Job.is_active == True).group_by(Job.company_name).order_by(func.count(Job.id).desc()).limit(10).all()
+        ).filter(Job.is_active == True).group_by(Job.company_name).order_by(func.count(Job.id).desc()).all()
+        company_count_map = {name: count for name, count in company_counts}
+        target_company_order = {name: index for index, name in enumerate(TARGET_COMPANY_NAMES)}
+        tracked_companies_sorted = sorted(
+            TARGET_COMPANY_NAMES,
+            key=lambda name: (-company_count_map.get(name, 0), target_company_order[name]),
+        )
 
         skill_rows = db.query(
             Skill.name, Skill.name_cn, Skill.category, func.count(JobSkill.job_id).label("cnt")
@@ -119,18 +125,32 @@ def get_overview_stats():
             "removed_today": removed_today,
             "new_last_7_days": new_7days,
             "companies_tracked": companies_count,
+            "tracked_company_summary": _compact_company_names(tracked_companies_sorted),
+            "tracked_company_full": "、".join(tracked_companies_sorted),
             "avg_salary_min": round(avg_sal[0], 1) if avg_sal and avg_sal[0] else 0,
             "avg_salary_max": round(avg_sal[1], 1) if avg_sal and avg_sal[1] else 0,
             "top_types": [
                 {"type": t, "count": c}
                 for t, c in sorted(type_counter.items(), key=lambda item: item[1], reverse=True)
             ],
-            "top_companies": [{"name": n, "count": c} for n, c in company_counts],
+            "top_companies": [{"name": n, "count": c} for n, c in company_counts[:10]],
             "top_skills": [{"name": n, "name_cn": nc, "category": cat, "count": cnt}
                            for n, nc, cat, cnt in skill_rows if cnt > 0],
         }
     finally:
         db.close()
+
+
+def _compact_company_names(company_names: list[str], max_chars: int = 22) -> str:
+    summary = ""
+    for index, name in enumerate(company_names):
+        has_more = index < len(company_names) - 1
+        suffix = "、..." if has_more else ""
+        candidate = f"{summary}、{name}" if summary else name
+        if len(candidate + suffix) > max_chars:
+            return f"{summary}、..." if summary else f"{name[:max_chars - 3]}..."
+        summary = candidate
+    return summary
 
 
 @app.get("/health")

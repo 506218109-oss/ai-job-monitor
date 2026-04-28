@@ -26,7 +26,7 @@
   <div class="stat-card">
     <div class="stat-value">{{ stats.companies_tracked }}</div>
     <div class="stat-label">监控公司</div>
-    <div class="stat-change" style="color: var(--c-text-secondary);">字节/腾讯基础上补充：目标 12 家</div>
+    <div class="stat-change stat-company-list" title="{{ stats.tracked_company_full }}">{{ stats.tracked_company_summary }}</div>
   </div>
 </div>
 
@@ -65,7 +65,7 @@
       <p style="color: var(--c-text-secondary);">加载中…</p>
     </div>
     <div class="maimai-hot-box" id="maimai-hot" hx-get="/api/analytics/maimai-hot" hx-trigger="load from:body">
-      <p style="color: var(--c-text-secondary);">正在读取脉脉热榜公开摘要…</p>
+      <p style="color: var(--c-text-secondary);">正在读取脉脉热点…</p>
     </div>
   </div>
 </div>
@@ -281,13 +281,13 @@ function renderEventTrends(data) {
 
 function renderMaimaiHot(data) {
   let html = '<div class="maimai-hot-head">';
-  html += '<span>脉脉热榜公开摘要</span>';
+  html += '<span>脉脉热点</span>';
   html += '<small>' + escapeHtml(data.scope_label || '北京时间当日') + '</small>';
   html += '</div>';
 
   if (!data.topics || !data.topics.length) {
     html += '<div class="maimai-empty">';
-    html += '<strong>' + escapeHtml(data.empty_message || '暂无公开热点摘要') + '</strong>';
+    html += '<strong>' + escapeHtml(data.empty_message || '暂无脉脉热点') + '</strong>';
     html += '<p>' + escapeHtml(data.policy || '') + '</p>';
     html += '</div>';
     document.getElementById('maimai-hot').innerHTML = html;
@@ -368,18 +368,19 @@ function balanceMaimaiHot() {
   box.style.overflow = 'hidden';
   rightCard.style.maxHeight = leftHeight + 'px';
   rightCard.style.overflow = 'hidden';
+  const fitLimit = Math.max(0, available - 16);
 
   const listItems = Array.from(box.querySelectorAll('.maimai-list li'));
   const policy = box.querySelector('.maimai-policy');
   const overflowNote = box.querySelector('.maimai-overflow-note');
   if (!listItems.length) return;
 
-  if (box.scrollHeight > available && policy) {
+  if (box.scrollHeight > fitLimit && policy) {
     policy.classList.add('is-hidden');
   }
 
   let hiddenCount = 0;
-  for (let index = listItems.length - 1; index >= 0 && box.scrollHeight > available; index -= 1) {
+  for (let index = listItems.length - 1; index >= 0 && box.scrollHeight > fitLimit; index -= 1) {
     listItems[index].classList.add('is-hidden');
     hiddenCount += 1;
   }
@@ -392,9 +393,19 @@ function balanceMaimaiHot() {
   }
 
   if (overflowNote && hiddenCount > 0) {
-    overflowNote.textContent = '已折叠 ' + hiddenCount + ' 条公开摘要';
+    overflowNote.textContent = '还有 ' + hiddenCount + ' 条已折叠';
     overflowNote.classList.remove('is-hidden');
-    if (box.scrollHeight > available) {
+    for (let index = listItems.length - hiddenCount - 1; index >= 0 && box.scrollHeight > fitLimit; index -= 1) {
+      listItems[index].classList.add('is-hidden');
+      hiddenCount += 1;
+      overflowNote.textContent = '还有 ' + hiddenCount + ' 条已折叠';
+    }
+    if (listItems.every(item => item.classList.contains('is-hidden'))) {
+      box.hidden = true;
+      box.style.display = 'none';
+      return;
+    }
+    if (box.scrollHeight > fitLimit) {
       overflowNote.classList.add('is-hidden');
     }
   }
